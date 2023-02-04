@@ -14,7 +14,8 @@
 
 #include <LiquidCrystal_I2C.h>
 #include <MAX6675_Thermocouple.h>
-MAX6675_Thermocouple thermocouple(4, 5, 6); // SCK, CS, SO
+// 2 - GND, 3 - 5V
+MAX6675_Thermocouple thermocouple1(4, 5, 6); // SCK, CS, SO
 
 unsigned long measureAtMsec = 0;
 unsigned long updateInterval = 1000;
@@ -23,11 +24,13 @@ unsigned long updateInterval = 1000;
 void setup() {
   Serial.begin(9600);
   Serial.println("\n\n\n\n\nSetup");
-  pinMode(2, OUTPUT);    // sets the digital pin 13 as output
-  pinMode(3, OUTPUT);    // sets the digital pin 13 as output
+  
+  // setup thermocouple1
+  pinMode(2, OUTPUT);
+  pinMode(3, OUTPUT);
   digitalWrite(2, LOW);
   digitalWrite(3, HIGH);
-  randomSeed(analogRead(0));
+  
   delay(1000);
 }
 
@@ -40,12 +43,9 @@ void loop() {
   // delay(updateInterval);
   if(measureAtMsec <= millis()) {
     measureAtMsec += updateInterval;
-    // Serial.println("time,temp1Up,temp1Bottom,temp2Up,temp2Bottom");
-    // Read a temperature in Celsius.
-    celsius = thermocouple.readCelsius();
+    celsius = thermocouple1.readCelsius();
     c = (int)celsius;
-    // Serial.println("temp, time:");
-    snprintf(buf, 255, "Data %d,%lu", c, millis());
+    snprintf(buf, 255, "D %d,%lu", c, millis() / 1000);
     Serial.println(buf);
   }
 }
