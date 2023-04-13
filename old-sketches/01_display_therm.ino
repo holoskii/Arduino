@@ -1,11 +1,16 @@
 #if 0
-0. Setup
+
+# 1. Permission
 ls -la /dev/ttyACM0 && sudo chmod a+rw /dev/ttyACM0 && ls -la /dev/ttyACM0
 
-1. Read
+# 2. Compile && Upload
+~/Arduino-IDE/arduino-cli compile --fqbn arduino:avr:mega ~/Arduino/sketch && ~/Arduino-IDE/arduino-cli upload ~/Arduino/sketch --fqbn arduino:avr:mega --port /dev/ttyACM0 --verbose
+
+# 3. Read
 cat -v /dev/ttyACM0 | tee ~/Arduino/out.txt
 
-2. Make a graph:
+
+# 4. Graph
 cd ~/Arduino && python3 main.py out.txt
 
 #endif
@@ -74,11 +79,9 @@ void loop() {
         lcd.setCursor(0, 0);
         snprintf(lineBuf, lineBufSize, "Time %02lu:%02lu", curTime / 60LU, curTime % 60LU);
         lcd.print(lineBuf);
-
         lcd.setCursor(0, 1);
         snprintf(lineBuf, lineBufSize, "T1: %3d.%02d", ip(c1), fp(c1));
         lcd.print(lineBuf);
-
         lcd.setCursor(0, 2);
         snprintf(lineBuf, lineBufSize, "T2: %3d.%02d", ip(c2), fp(c2));
         lcd.print(lineBuf);

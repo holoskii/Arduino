@@ -53,7 +53,7 @@ def update_graph(frame):
 
 def main():
     fig = plt.figure()
-    ani = animation.FuncAnimation(fig, update_graph, interval=5000)
+    ani = animation.FuncAnimation(fig, update_graph, interval=1000)
     plt.show()
 
 if __name__ == "__main__":
