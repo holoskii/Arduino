@@ -1,148 +1,167 @@
-#if 0
-
-ls -la /dev/ttyACM0 && sudo chmod a+rw /dev/ttyACM0 && ls -la /dev/ttyACM0 
-
-~/Arduino-IDE/arduino-cli compile --fqbn arduino:avr:mega ~/Arduino/sketch && ~/Arduino-IDE/arduino-cli upload ~/Arduino/sketch --fqbn arduino:avr:mega --port /dev/ttyACM0 --verbose
-
-cat -v /dev/ttyACM0 | tee ~/Arduino/out.txt
-
-# 4. Graph
-cd ~/Arduino && python3 main.py out.txt
-
-#endif
-
-
-#include <LiquidCrystal_I2C.h>
 #include <MAX6675_Thermocouple.h>
 
-// Global variables
-LiquidCrystal_I2C lcd(0x27, 20, 4);
-MAX6675_Thermocouple thermocouple1(10, 11, 12); // 8 - GND, 9 - 5V, SCK, CS, SO
-MAX6675_Thermocouple thermocouple2(4, 5, 6); // 2 - GND, 3 - 5V, SCK, CS, SO
+// #include <LiquidCrystal_I2C.h>
+// LiquidCrystal_I2C lcd(0x27, 20, 4);
 
-bool useRelay1 = true; 
-// 1 = SUBSTRATE
-// 2 = SOURCE
+// MAX6675_Thermocouple thermocouple2(4, 5, 6); // 2 - GND, 3 - 5V, SCK, CS, SO
+
+class Timer {
+public:
+    void start(unsigned long duration) {
+        mStartTime = millis();
+        mDuration = duration;
+    }
+
+    bool isExpired() {
+        if(mDuration + mStartTime >= millis())
+            return true;
+        return false;
+    } 
+
+private:
+    unsigned long mStartTime = 0;
+    unsigned long mDuration = 0;
+};
+
+class Controller {
+public:
+    Controller(int tcGND, int tc5V, int tcSCK, int tcCS, int tcSO, int irelayControlPin, int irelayGroundPin)
+    : tcGNDpin(tcGND), tc5Vpin(tc5V), thermocouple(tcSCK, tcCS, tcSO), relayControlPin(irelayControlPin), relayGroundPin(irelayGroundPin) {
+        
+    }
+
+    void setup() {
+        // setup relay
+        pinMode(relayControlPin, OUTPUT);
+        pinMode(relayGroundPin, OUTPUT);
+        digitalWrite(relayControlPin, LOW);
+        digitalWrite(relayGroundPin, LOW);
+
+        // setup thermocouple
+        pinMode(tcGNDpin, OUTPUT);
+        pinMode(tc5Vpin, OUTPUT); 
+        digitalWrite(tcGNDpin, LOW);
+        digitalWrite(tc5Vpin, HIGH);
+    }
+
+    void loop() {
+        currentTime = millis();
+        pollLogic();
+        pollRelay();
+    }
+
+private:
+    // Logic
+    unsigned long currentTime = 0;
+    int controlValue = 0; // [0..1000], represents how ms in seconds relay will be ON
+    int previousError = 0;
+    int targetTemp = 400;
+    double kp = 0.02, kd = 0.20;
 
 
+    // Thermocouple
+    static constexpr int NUM_TEMP_READS = 3;
+    static constexpr int TEMP_READ_INTERVAL = 333;
+    int readings[NUM_TEMP_READS + 2] = { 0 };
+    int readingIndex = 0;
+    unsigned long nextReadTime = 0;
+    int tcGNDpin;
+    int tc5Vpin;
+    MAX6675_Thermocouple thermocouple;
 
-// settable parameters
-double target_sample_temp = 400;
-double kp = 0.02, ki = 0, kd = 0.20;
+    // Relay
+    int relayControlPin;
+    int relayGroundPin;
+    bool relayState = false;
+    unsigned long relayCycleStart = 0;
+    unsigned long relayPollTime = 0;
 
+    void pollLogic() {
+        if(currentTime < nextReadTime)
+            return;
 
-int relay1Pin = 22;
-int relay1Ground = 23;
-int relay2Pin = 24;
-int relay2Ground = 25;
+        nextReadTime += TEMP_READ_INTERVAL;
 
+        int temp = int(thermocouple.readCelsius() * 100); 
+        readings[readingIndex] = temp;
+        readingIndex = (readingIndex + 1) % NUM_TEMP_READS;
 
-double temp1, temp2; // Thermal pair readings
-unsigned long currentTime = 0; // Time in seconds since the start
-unsigned int controlValue = 0; // from 0 to 1000
+        
+        Serial.println()
+
+        if(readingIndex != 0)
+            return;
+
+        int averageTemp = calculateAverageTemp();
+        controlValue = calculateControlValue(averageTemp);
+        relayCycleStart = currentTime;
+    }
+
+     int calculateAverageTemp() {
+        int sum = 0;
+        for (int i = 0; i < NUM_TEMP_READS; i++) {
+            sum += readings[i];
+        }
+        return sum / NUM_TEMP_READS;
+    }
+
+    int calculateControlValue(int temperature) {
+        int error = targetTemp - temperature;
+        int deriv = error - previousError;
+        previousError = error;
+        
+        double cv = (kp * double(error)) + (kd * double(deriv));
+        if (cv < 0.0) cv = 0.0;
+        if (cv > 0.0 && cv < 0.05) cv = 0.0;
+        if (cv > 1.0) cv = 1.0;
+        if (cv < 1.0 && cv > 0.95) cv = 1.0;
+
+        return 500;
+        // return (int)(1000.0 * cv);
+    }
+
+    void pollRelay() {
+        // Only poll once a millisecond
+        if(currentTime == relayPollTime)
+            return;
+        relayPollTime = currentTime;
+
+        unsigned long elapsedCycleTime = currentTime - relayCycleStart;
+        relayState = (elapsedCycleTime < controlValue);
+
+        relayState = true;
+        if(elapsedCycleTime >= controlValue) {
+            relayState = false;
+        }
+        else if (elapsedCycleTime >= 1000) {
+            Serial.println("Overshoot");
+            relayState = controlValue == 1000;
+        }
+
+        digitalWrite(relayControlPin, relayState ? HIGH : LOW);
+    }
+};
+
+Controller controllerSubstr1(8, 9, 10, 11, 12, 22, 23);
+
 
 
 void setup() {
-    // setup relay1
-    pinMode(relay1Pin, OUTPUT);
-    pinMode(relay1Ground, OUTPUT);
-    digitalWrite(relay1Pin, LOW);
-    digitalWrite(relay1Ground, LOW);
-
-    // setup relay2
-    pinMode(relay2Pin, OUTPUT);
-    pinMode(relay2Ground, OUTPUT);
-    digitalWrite(relay2Pin, LOW);
-    digitalWrite(relay2Ground, LOW);
-
     // setup serial
     Serial.begin(9600);
     Serial.println("\n\n\n\n\nSetup");
 
     // setup LCD
-    lcd.init();
-    lcd.backlight();
-    lcd.print("Hello world");
-
-    // setup thermocouple1
-    pinMode(2, OUTPUT);
-    pinMode(3, OUTPUT); 
-    digitalWrite(2, LOW);
-    digitalWrite(3, HIGH);
-
-    // setup thermocouple2
-    pinMode(8, OUTPUT);
-    pinMode(9, OUTPUT);
-    digitalWrite(8, LOW);
-    digitalWrite(9, HIGH);
+    // lcd.init();
+    // lcd.backlight();
+    // lcd.print("Hello world");
 }
 
-unsigned long iterationStart = 0;
-bool relayState = false;
-void pollRelay() {
-    if (millis() < iterationStart + controlValue)
-        relayState = true;
-    else if (millis() < iterationStart + 1000)
-        relayState = false;
-    else {
-        iterationStart = iterationStart + 1000;
-        relayState = true;
-    }
-
-    // RELAY SWITCH
-    /*if(useRelay1)
-        digitalWrite(relay1Pin, relayState ? HIGH : LOW);
-    else 
-        digitalWrite(relay2Pin, relayState ? HIGH : LOW);*/
-    digitalWrite(relay1Pin, relayState ? HIGH : LOW);
-
-
+void loop() {
+    controllerSubstr1.loop();
 }
 
-void pollInput() {
-    temp1 = thermocouple1.readCelsius(); 
-    temp2 = thermocouple2.readCelsius(); 
-}
-
-
-// PID consts
-constexpr int integral_count = 3;
-double* integral_arr         = nullptr;
-double prev_err              = 0;
-
-double error, deriv;
-
-double tmp1 = 0.0;
-void pollLogic() {
-    /*
-    controlValue = 50 * currentTime;
-    if (controlValue < 10) 
-        controlValue = 0;
-    if (controlValue > 990) 
-        controlValue = 1000;
-    
-    if (controlValue < 0)
-        controlValue = 0;
-    if (controlValue > 1000)
-        controlValue = 1000;
-    */
-
-    // PID calculations
-    if(useRelay1)
-        error = target_sample_temp - temp1;
-    else 
-        error = target_sample_temp - temp2;
-    
-    deriv = error - prev_err;
-
-
-    
-    tmp1 = (kp * error) + (kd * deriv);
-    if(tmp1 < 0.0) tmp1 = 0.0;
-    if(tmp1 > 1.0) tmp1 = 1.0;
-    controlValue = (int)(1000.0 * tmp1);
-    prev_err = error;
-}
+#if 0
 
 constexpr size_t lineBufSize = 17;
 char lineBuf[lineBufSize];
@@ -183,7 +202,7 @@ void loop() {
 }
 
 
-
+#endif
 
 #if 0
 char buf[255];
