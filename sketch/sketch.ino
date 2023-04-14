@@ -23,10 +23,14 @@ private:
     unsigned long mDuration = 0;
 };
 
+char serialBuf[255];
+inline int ip(double d) { return (int)d; }
+inline int fp(double d) { return (int)((d - (int)d) * 100); } 
+
 class Controller {
 public:
-    Controller(int tcGND, int tc5V, int tcSCK, int tcCS, int tcSO, int irelayControlPin, int irelayGroundPin)
-    : tcGNDpin(tcGND), tc5Vpin(tc5V), thermocouple(tcSCK, tcCS, tcSO), relayControlPin(irelayControlPin), relayGroundPin(irelayGroundPin) {
+    Controller(int tcGND, int tc5V, int tcSCK, int tcCS, int tcSO, int irelayControlPin, int irelayGroundPin, int itargetTemp)
+    : tcGNDpin(tcGND), tc5Vpin(tc5V), thermocouple(tcSCK, tcCS, tcSO), relayControlPin(irelayControlPin), relayGroundPin(irelayGroundPin), targetTemp(itargetTemp) {
         
     }
 
@@ -54,15 +58,15 @@ private:
     // Logic
     unsigned long currentTime = 0;
     int controlValue = 0; // [0..1000], represents how ms in seconds relay will be ON
-    int previousError = 0;
-    int targetTemp = 400;
-    double kp = 0.02, kd = 0.20;
+    double previousError = 0;
+    int targetTemp = 100;
+    double kp = 0.02, kd = 0.50;
 
 
     // Thermocouple
-    static constexpr int NUM_TEMP_READS = 3;
-    static constexpr int TEMP_READ_INTERVAL = 333;
-    int readings[NUM_TEMP_READS + 2] = { 0 };
+    static constexpr int NUM_TEMP_READS = 4;
+    static constexpr int TEMP_READ_INTERVAL = 250;
+    double readings[NUM_TEMP_READS + 2] = { 0 };
     int readingIndex = 0;
     unsigned long nextReadTime = 0;
     int tcGNDpin;
@@ -82,42 +86,62 @@ private:
 
         nextReadTime += TEMP_READ_INTERVAL;
 
-        int temp = int(thermocouple.readCelsius() * 100); 
+        double tempDouble = thermocouple.readCelsius();
+        double temp = tempDouble; 
         readings[readingIndex] = temp;
         readingIndex = (readingIndex + 1) % NUM_TEMP_READS;
 
-        
-        Serial.println()
+        // snprintf(serialBuf, 255, "Reading done, index=%d, temp=%d, %d.%2d", readingIndex, temp, ip(tempDouble), fp(tempDouble));
+        // Serial.println(serialBuf);
 
         if(readingIndex != 0)
             return;
 
-        int averageTemp = calculateAverageTemp();
+        double averageTemp = calculateAverageTemp();
+
+
+
         controlValue = calculateControlValue(averageTemp);
+
+        // snprintf(serialBuf, 255, "%d readings done, avg temp=%d,%02d, control value = %d", NUM_TEMP_READS, averageTemp / 100, averageTemp % 100, controlValue);
+        // Serial.println(serialBuf);
+
         relayCycleStart = currentTime;
     }
 
-     int calculateAverageTemp() {
-        int sum = 0;
+     double calculateAverageTemp() {
+        double sum = 0;
         for (int i = 0; i < NUM_TEMP_READS; i++) {
             sum += readings[i];
         }
         return sum / NUM_TEMP_READS;
     }
 
-    int calculateControlValue(int temperature) {
-        int error = targetTemp - temperature;
-        int deriv = error - previousError;
+    int calculateControlValue(double temperature) {
+        double error = targetTemp - temperature;
+        double deriv = error - previousError;
         previousError = error;
         
-        double cv = (kp * double(error)) + (kd * double(deriv));
+        double p = kp * double(error);
+        double d = kd * double(deriv);
+        double cv = p + d;
+        double r = cv;
+
         if (cv < 0.0) cv = 0.0;
         if (cv > 0.0 && cv < 0.05) cv = 0.0;
         if (cv > 1.0) cv = 1.0;
         if (cv < 1.0 && cv > 0.95) cv = 1.0;
 
-        return 500;
-        // return (int)(1000.0 * cv);
+        snprintf(serialBuf, 255, "Error=%d.%02d, P=%d D=%d RES=%d TRES=%d T=%d.%02d"
+            , ip(error), fp(error),int(p * 1000), int(d * 1000), int(r * 1000), int(cv * 1000), ip(temperature), fp(temperature));
+        Serial.println(serialBuf);
+
+        snprintf(serialBuf, 255, "LINE: %lu,%d.%02d,%d"
+            , currentTime / 1000, ip(temperature), fp(temperature), int(cv * 1000));
+        Serial.println(serialBuf);
+
+
+        return (int)(1000.0 * cv);
     }
 
     void pollRelay() {
@@ -142,7 +166,7 @@ private:
     }
 };
 
-Controller controllerSubstr1(8, 9, 10, 11, 12, 22, 23);
+Controller controllerSubstr1(2, 3, 4, 5, 6, 22, 23, 420);
 
 
 
@@ -155,6 +179,8 @@ void setup() {
     // lcd.init();
     // lcd.backlight();
     // lcd.print("Hello world");
+
+    controllerSubstr1.setup();
 }
 
 void loop() {
