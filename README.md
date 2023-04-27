@@ -52,3 +52,12 @@ Relay: 22 - control pin (+), 23 - GND
 2. Source
 Thermal module: 8 - GND, 9 - 5V, 10 - SCK, 11 - CS, 12 - SO
 Relay: 24 - control pin (+), 25 - GND
+
+
+
+
+Relay
+SSR-10DA
+Switch time < 10ms
+
+Temp sensor

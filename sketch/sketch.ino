@@ -1,13 +1,27 @@
 #include <MAX6675_Thermocouple.h>
 
-char serialBuf[255]; 
-int ip(double d) { return (int)d; }
-int fp(double d) { return (int)((d - (int)d) * 100); }
+// #############################
+// USER SET VARIABLES
+#define SUBSTRATE_TEMP 420
+#define SOURCE_TEMP 420
+
+#define KP 0.02
+#define KD 0.50
+// #############################
+
+unsigned long currentTime = 0;
+char serialBuf[512]; 
+static constexpr int NUM_TEMP_READS = 4;
+static constexpr int TEMP_READ_INTERVAL = 1000 / NUM_TEMP_READS;
+
+inline int ip(double d) { return (int)d; }
+inline int fp(double d) { return (int)((d - (int)d) * 100); }
+
 
 class Controller {
 public:
-    Controller(int idx, int tcGND, int tc5V, int tcSCK, int tcCS, int tcSO, int irelayControlPin, int irelayGroundPin, int itargetTemp)
-    : mIdx(idx), tcGNDpin(tcGND), tc5Vpin(tc5V), thermocouple(tcSCK, tcCS, tcSO), relayControlPin(irelayControlPin), relayGroundPin(irelayGroundPin), targetTemp(itargetTemp) {}
+    Controller(int tcGND, int tc5V, int tcSCK, int tcCS, int tcSO, int irelayControlPin, int irelayGroundPin, int itargetTemp)
+    : tcGNDpin(tcGND), tc5Vpin(tc5V), thermocouple(tcSCK, tcCS, tcSO), relayControlPin(irelayControlPin), relayGroundPin(irelayGroundPin), targetTemp(itargetTemp) {}
 
     void setup() {
         // setup relay
@@ -23,29 +37,16 @@ public:
         digitalWrite(tc5Vpin, HIGH);
     }
 
-    void loop() {
-        currentTime = millis();
-        pollLogic();
-        pollRelay();
-    }
-
 public:
     // Logic
-    int mIdx = 0;
-    int mNewData = 1;
-    unsigned long currentTime = 0;
     int controlValue = 0; // [0..1000], represents how ms in seconds relay will be ON
     double previousError = 0;
     int targetTemp;
-    double kp = 0.02, kd = 0.50; // higher kd -> less overshooting 
-
+    double kp = KP, kd = KD;
 
     // Thermocouple
-    static constexpr int NUM_TEMP_READS = 4;
-    static constexpr int TEMP_READ_INTERVAL = 1000 / NUM_TEMP_READS;
     double readings[NUM_TEMP_READS] = { 0 };
     int readingIndex = 0;
-    unsigned long nextReadTime = 0;
     int tcGNDpin;
     int tc5Vpin;
     MAX6675_Thermocouple thermocouple;
@@ -54,15 +55,8 @@ public:
     int relayControlPin;
     int relayGroundPin;
     bool relayState = false;
-    unsigned long relayCycleStart = 0;
-    unsigned long relayPollTime = 0;
 
     void pollLogic() {
-        if(currentTime < nextReadTime)
-            return;
-
-        nextReadTime += TEMP_READ_INTERVAL;
-
         double tempDouble = thermocouple.readCelsius();
         double temp = tempDouble; 
         readings[readingIndex] = temp;
@@ -73,7 +67,6 @@ public:
 
         double averageTemp = calculateAverageTemp();
         controlValue = calculateControlValue(averageTemp);
-        relayCycleStart = currentTime;
     }
 
      double calculateAverageTemp() {
@@ -84,7 +77,7 @@ public:
         return sum / NUM_TEMP_READS;
     }
 
-    double temperature, error = 0, deriv = 0, p = 0, d = 0, uncappedCV = 0, cv = 0;
+    double temperature = 0, error = 0, deriv = 0, p = 0, d = 0, uncappedCV = 0, cv = 0;
 
     int calculateControlValue(double inTemperature) {
         temperature = inTemperature;
@@ -101,18 +94,10 @@ public:
         if (cv < 0.01) cv = 0.0;
         if (cv > 0.99) cv = 1.0;
 
-        mNewData = 1;
-
         return (int)(1000.0 * cv);
     }
 
-    void pollRelay() {
-        // Only poll once a millisecond
-        if(currentTime == relayPollTime)
-            return;
-        relayPollTime = currentTime;
-
-        unsigned long elapsedCycleTime = currentTime - relayCycleStart;
+    void pollRelay(unsigned long elapsedCycleTime) {
         relayState = (elapsedCycleTime < controlValue);
 
         relayState = true;
@@ -128,36 +113,61 @@ public:
     }
 };
 
-Controller c1(1, 2, 3, 4, 5, 6, 22, 23, 420); // TEMP HERE
-Controller c2(2, 8, 9, 10, 11, 12, 24, 25, 480); // TEMP HERE
+class Reactor {
+public:
+    Controller c1 {2, 3, 4, 5, 6, 22, 23, SUBSTRATE_TEMP}; // Substrate
+    Controller c2 {8, 9, 10, 11, 12, 24, 25, SOURCE_TEMP}; // Source
+
+    unsigned long relayPollTime = 0;
+    unsigned long nextReadTime = 0;
+    unsigned long relayCycleStart = 0;
+
+    void setup() {
+        c1.setup();
+        c2.setup();
+    }
+
+    void loop() {
+        currentTime = millis();
+
+        if(currentTime >= nextReadTime) {
+            nextReadTime += TEMP_READ_INTERVAL;
+            
+            c1.pollLogic();
+            c2.pollLogic();
+
+            relayCycleStart = currentTime;
+
+            snprintf(serialBuf, 512, "INFO: %lu,%d.%02d,%d,%d.%02d,%d" 
+                , currentTime / 1000, ip(c1.temperature), fp(c1.temperature), int(c1.cv * 100), ip(c2.temperature), fp(c2.temperature), int(c2.cv * 100));
+            Serial.println(serialBuf);  
+
+            snprintf(serialBuf, 512, "TRACE1: ERR=%3d P=%3d D=%3d uCV=%3d CV=%3d T=%3d, TRACE2: ERR=%3d P=%3d D=%3d uCV=%3d CV=%3d T=%3d"
+                , ip(c1.error),int(c1.p * 100), int(c1.d * 100), int(c1.uncappedCV * 100), int(c1.cv * 100), ip(c1.temperature) 
+                , ip(c2.error),int(c2.p * 100), int(c2.d * 100), int(c2.uncappedCV * 100), int(c2.cv * 100), ip(c2.temperature));
+            Serial.println(serialBuf);
+        }
 
 
+        // Only poll relay once a millisecond
+        if(currentTime != relayPollTime) {
+            relayPollTime = currentTime;
+            c1.pollRelay(currentTime - relayCycleStart);
+            c2.pollRelay(currentTime - relayCycleStart);
+        }
+    }
+};
+
+Reactor r{};
 
 void setup() {
     Serial.begin(9600);
     Serial.println("\n\n\nStart");
-
-    c1.setup();
-    c2.setup();
+    r.setup();
 }
 
 void loop() {
-    c1.loop();
-    c2.loop();
-    if(c2.mNewData) {
-        c2.mNewData = 0;
-
-        snprintf(serialBuf, 255, "INFO: %lu,%d.%02d,%d,%d.%02d,%d\n" 
-            , c1.currentTime / 1000, ip(c1.temperature), fp(c1.temperature), int(c1.cv * 100), ip(c2.temperature), fp(c2.temperature), int(c2.cv * 100));
-        Serial.print(serialBuf);  
-
-        snprintf(serialBuf, 255, "TRACE%d: ERR=%3d P=%3d D=%3d uCV=%3d CV=%3d T=%3d, TRACE%d: ERR=%3d P=%3d D=%3d uCV=%3d CV=%3d T=%3d"
-            , c1.mIdx, ip(c1.error),int(c1.p * 100), int(c1.d * 100), int(c1.uncappedCV * 100), int(c1.cv * 100), ip(c1.temperature) 
-            , c2.mIdx, ip(c2.error),int(c2.p * 100), int(c2.d * 100), int(c2.uncappedCV * 100), int(c2.cv * 100), ip(c2.temperature));
-        Serial.println(serialBuf);
-
-
-    }
+    r.loop();
 }
 
 
