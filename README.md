@@ -4,7 +4,7 @@ sudo apt update && sudo apt install git python3-pip fish terminator
 sudo snap install code --classic
 pip3 install matplotlib
 git clone https://github.com/holoskii/arduino.git
-cd ~/Arduino/env && ./install_fish.sh env_noenv.fish
+rm -rf ~/.config/fish/ && cd ~/Arduino/env && ./install_fish.sh env_noenv.fish && omf reload
 
 cd ~/Arduino/ && wget -qO arduino-cli.tar.gz https://downloads.arduino.cc/arduino-cli/arduino-cli_latest_Linux_64bit.tar.gz && tar xf arduino-cli.tar.gz && rm arduino-cli.tar.gz && ~/Arduino/env/arduino-cli lib install MAX6675_Thermocouple
 

@@ -5,7 +5,6 @@ THIS_DIR=$(cd "$(dirname "$0")"; pwd)
 set -x
 set +e
 
-sudo apt update
 sudo apt install fish curl fonts-powerline
 set -e
 curl --insecure -L https://get.oh-my.fish > /tmp/install
