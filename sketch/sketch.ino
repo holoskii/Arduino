@@ -3,7 +3,7 @@
 // #############################
 // USER SET VARIABLES
 #define SUBSTRATE_TEMP 420
-#define SOURCE_TEMP 420
+#define SOURCE_TEMP 480
 
 #define KP 0.02
 #define KD 0.50
@@ -56,17 +56,18 @@ public:
     int relayGroundPin;
     bool relayState = false;
 
-    void pollLogic() {
+    bool pollLogic() {
         double tempDouble = thermocouple.readCelsius();
         double temp = tempDouble; 
         readings[readingIndex] = temp;
         readingIndex = (readingIndex + 1) % NUM_TEMP_READS;
 
         if(readingIndex != 0)
-            return;
+            return false;
 
         double averageTemp = calculateAverageTemp();
         controlValue = calculateControlValue(averageTemp);
+        return true;
     }
 
      double calculateAverageTemp() {
@@ -134,18 +135,20 @@ public:
             nextReadTime += TEMP_READ_INTERVAL;
             
             c1.pollLogic();
-            c2.pollLogic();
+            bool calcLogic = c2.pollLogic();
 
-            relayCycleStart = currentTime;
+            if(calcLogic) {
+                relayCycleStart = currentTime;
 
-            snprintf(serialBuf, 512, "INFO: %lu,%d.%02d,%d,%d.%02d,%d" 
-                , currentTime / 1000, ip(c1.temperature), fp(c1.temperature), int(c1.cv * 100), ip(c2.temperature), fp(c2.temperature), int(c2.cv * 100));
-            Serial.println(serialBuf);  
+                snprintf(serialBuf, 512, "INFO: %lu,%d.%02d,%d,%d.%02d,%d" 
+                    , currentTime / 1000, ip(c1.temperature), fp(c1.temperature), int(c1.cv * 100), ip(c2.temperature), fp(c2.temperature), int(c2.cv * 100));
+                Serial.println(serialBuf);  
 
-            snprintf(serialBuf, 512, "TRACE1: ERR=%3d P=%3d D=%3d uCV=%3d CV=%3d T=%3d, TRACE2: ERR=%3d P=%3d D=%3d uCV=%3d CV=%3d T=%3d"
-                , ip(c1.error),int(c1.p * 100), int(c1.d * 100), int(c1.uncappedCV * 100), int(c1.cv * 100), ip(c1.temperature) 
-                , ip(c2.error),int(c2.p * 100), int(c2.d * 100), int(c2.uncappedCV * 100), int(c2.cv * 100), ip(c2.temperature));
-            Serial.println(serialBuf);
+                snprintf(serialBuf, 512, "TRACE1: ERR=%3d P=%3d D=%3d uCV=%3d CV=%3d T=%3d, TRACE2: ERR=%3d P=%3d D=%3d uCV=%3d CV=%3d T=%3d"
+                    , ip(c1.error),int(c1.p * 100), int(c1.d * 100), int(c1.uncappedCV * 100), int(c1.cv * 100), ip(c1.temperature) 
+                    , ip(c2.error),int(c2.p * 100), int(c2.d * 100), int(c2.uncappedCV * 100), int(c2.cv * 100), ip(c2.temperature));
+                Serial.println(serialBuf);
+            }
         }
 
 
