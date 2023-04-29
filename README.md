@@ -12,6 +12,9 @@ ard_read_clear
 # Show plot in real-time
 ard_plot
 
+# Update code and functions from remote
+ard_update_me
+
 ### Pinout
 1. Substrate
 Thermal module: 2 - 6. 2 - GND, 3 - 5V, 4 - SCK, 5 - CS, 6 - SO

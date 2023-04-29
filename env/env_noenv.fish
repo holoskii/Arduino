@@ -14,7 +14,8 @@ end
 # Make sure that the port is accessible: sudo chmod a+rw /dev/ttyACM0
 
 # Reload fish functions
-function fish_reload
+function ard_update_me
+   cd ~/Arduino && git pull
    rm -rf ~/.config/fish/ && cd ~/Arduino/env && ./install_fish.sh env_noenv.fish && omf reload
 end
 
