@@ -1,14 +1,21 @@
 #include <MAX6675_Thermocouple.h>
 
+// TODO: 
+// 1. use SUBLIMATION_TIME_MS
+// 2. Implement power limit
+
 // ############################################## USER SET VARIABLES
+static constexpr float      SUBSTRATE_TEMP_MULT = 1.04; // increases target temp for PID calculations
 static constexpr int        SUBSTRATE_TEMP = 420;
 static constexpr float      SUBSTRATE_KP   = 0.02;
 static constexpr float      SUBSTRATE_KD   = 0.50;
 
+static constexpr float      SOURCE_TEMP_MULT = 1.06;
 static constexpr int        SOURCE_TEMP = 480;
 static constexpr float      SOURCE_KP   = 0.02;
-static constexpr float      SOURCE_KD   = 0.50;
+static constexpr float      SOURCE_KD   = 1.00;
 
+static constexpr long       SUBLIMATION_TIME_MS = 10 * 60 * 1000;
 static constexpr bool       TRACE_ENABLED = true;
 // ############################################## USER SET VARIABLES
 
@@ -25,12 +32,12 @@ inline int fp(float d) { return (int)((d - (int)d) * 100); }
 class Controller {
 public:
     Controller(
-        int tcGND, int tc5V, int tcSCK, int tcCS, int tcSO, 
-        int irelayControlPin, int irelayGroundPin, 
-        int itargetTemp, float ikp, float ikd)
-    : tcGNDpin(tcGND), tc5Vpin(tc5V), thermocouple(tcSCK, tcCS, tcSO)
-    , relayControlPin(irelayControlPin), relayGroundPin(irelayGroundPin)
-    , targetTemp(itargetTemp), kp(ikp), kd(ikd) {}
+        int tcGNDpin, int tc5Vpin, int tcSCK, int tcCS, int tcSO, 
+        int relayControlPin, int relayGroundPin, 
+        int targetTemp, float tempMult, float kp, float kd)
+    : tcGNDpin(tcGNDpin), tc5Vpin(tc5Vpin), thermocouple(tcSCK, tcCS, tcSO)
+    , relayControlPin(relayControlPin), relayGroundPin(relayGroundPin)
+    , targetTemp(targetTemp), tempMult(tempMult), kp(kp), kd(kd) {}
 
     void setup() {
         // setup relay
@@ -50,6 +57,7 @@ public:
     int controlValue = 0; // [0..1000], represents how ms in seconds relay will be ON
     float previousError = 0;
     const int targetTemp;
+    const float tempMult;
     const float kp, kd;
 
     // Thermocouple
@@ -91,7 +99,7 @@ public:
     int calculateControlValue(float inTemperature) {
         // Save all these intermediate values to trace them
         temperature = inTemperature;
-        error = targetTemp - temperature;
+        error = targetTemp * tempMult - temperature;
         deriv = error - previousError;
         previousError = error;
         
@@ -130,8 +138,8 @@ public:
     static const size_t serialBufLen = 1024;
     char serialBuf[serialBufLen];
 
-    Controller substrateController {2, 3,  4,  5,  6, 22, 23, SUBSTRATE_TEMP, SUBSTRATE_KP, SUBSTRATE_KD}; // Substrate
-    Controller sourceController    {8, 9, 10, 11, 12, 24, 25, SOURCE_TEMP,    SOURCE_KP,    SOURCE_KD   }; // Source
+    Controller substrateController {2, 3,  4,  5,  6, 22, 23, SUBSTRATE_TEMP, SUBSTRATE_TEMP_MULT, SUBSTRATE_KP, SUBSTRATE_KD}; // Substrate
+    Controller sourceController    {8, 9, 10, 11, 12, 24, 25, SOURCE_TEMP,    SOURCE_TEMP_MULT,    SOURCE_KP,    SOURCE_KD   }; // Source
 
     unsigned long relayPollTime = 0;
     unsigned long nextReadTime = 0;
