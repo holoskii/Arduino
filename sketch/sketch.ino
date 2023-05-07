@@ -15,18 +15,19 @@ static constexpr int        SOURCE_TEMP = 480;
 static constexpr float      SOURCE_KP   = 0.02;
 static constexpr float      SOURCE_KD   = 1.00;
 
-static constexpr long       SUBLIMATION_TIME_MS = 10 * 60 * 1000;
+static constexpr long       DEPOSITION_TIME_MS = 10 * 60 * 1000;
 static constexpr bool       TRACE_ENABLED = true;
 // ############################################## USER SET VARIABLES
 
 
-// For more predictable logic calculations, use one time for each loop call
-unsigned long currentTime = 0;
+inline int ip(float d) { return (int)d; }
+inline int fp(float d) { return (int)((d - (int)d) * 100); }
+
 static constexpr int NUM_TEMP_READS = 4;
 static constexpr int TEMP_READ_INTERVAL = 1000 / NUM_TEMP_READS;
 
-inline int ip(float d) { return (int)d; }
-inline int fp(float d) { return (int)((d - (int)d) * 100); }
+unsigned long currentTime     = 0;  // For more predictable logic calculations, use one time for each loop call
+bool          depositionEnded = false;
 
 // Controls PID, relays and thermocouples. 2 for reactor, one for both source and substrate
 class Controller {
@@ -107,6 +108,9 @@ public:
         d = kd * deriv;
         uncappedCV = p + d;
 
+        if (depositionEnded)
+            cv = 0.0;
+
         cv = min(1.0, max(0.0, uncappedCV));
 
         // Switch time is 10 ms, so avoid any time intervals < 10ms
@@ -145,6 +149,9 @@ public:
     unsigned long nextReadTime = 0;
     unsigned long relayCycleStart = 0;
 
+    bool depositionStarted = false;
+    unsigned long depositionStartTime = 0;
+
     void setup() {
         substrateController.setup();
         sourceController.setup();
@@ -162,6 +169,18 @@ public:
             // Print only if logic was recalculated
             if(calcLogic) {
                 relayCycleStart = currentTime;
+
+                if (!depositionStarted) {
+                    if (sourceController.temperature >= sourceController.targetTemp && sourceController.error < 50) {
+                        depositionStarted = true;
+                        depositionStartTime = currentTime;
+                    }
+                }
+                else {
+                    if (currentTime - depositionStartTime > DEPOSITION_TIME_MS) {
+                        depositionEnded = true;
+                    }
+                }
 
                 int pos = snprintf(serialBuf, serialBufLen
                     , "INFO: %lu,"
