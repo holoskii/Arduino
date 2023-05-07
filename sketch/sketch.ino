@@ -101,6 +101,7 @@ public:
 
         cv = min(1.0, max(0.0, uncappedCV));
 
+        // Switch time is 10 ms, so avoid any time intervals < 10ms
         if (cv < 0.01) cv = 0.0;
         if (cv > 0.99) cv = 1.0;
 
@@ -126,10 +127,11 @@ public:
 // Manages 2 controllers, sends data through serial
 class Reactor {
 public:
-    char serialBuf[512];
+    static const size_t serialBufLen = 1024;
+    char serialBuf[serialBufLen];
 
-    Controller substrateController {2, 3, 4, 5, 6, 22, 23, SUBSTRATE_TEMP, SUBSTRATE_KP, SUBSTRATE_KD}; // Substrate
-    Controller sourceController {8, 9, 10, 11, 12, 24, 25, SOURCE_TEMP, SOURCE_KP, SOURCE_KD}; // Source
+    Controller substrateController {2, 3,  4,  5,  6, 22, 23, SUBSTRATE_TEMP, SUBSTRATE_KP, SUBSTRATE_KD}; // Substrate
+    Controller sourceController    {8, 9, 10, 11, 12, 24, 25, SOURCE_TEMP,    SOURCE_KP,    SOURCE_KD   }; // Source
 
     unsigned long relayPollTime = 0;
     unsigned long nextReadTime = 0;
@@ -149,19 +151,35 @@ public:
             substrateController.pollLogic();
             bool calcLogic = sourceController.pollLogic();
 
+            // Print only if logic was recalculated
             if(calcLogic) {
                 relayCycleStart = currentTime;
 
-                snprintf(serialBuf, 512, "INFO: %lu,%d.%02d,%d,%d.%02d,%d" 
-                    , currentTime / 1000, ip(substrateController.temperature), fp(substrateController.temperature), int(substrateController.cv * 100), ip(sourceController.temperature), fp(sourceController.temperature), int(sourceController.cv * 100));
-                Serial.println(serialBuf);  
+                int pos = snprintf(serialBuf, serialBufLen
+                    , "INFO: %lu,"
+                      "%d.%02d,%d,"
+                      "%d.%02d,%d\n" 
+                    , currentTime / 1000
+                    , ip(substrateController.temperature), fp(substrateController.temperature), int(substrateController.cv * 100)
+                    , ip(sourceController.temperature), fp(sourceController.temperature), int(sourceController.cv * 100));
 
                 if(TRACE_ENABLED) {
-                    snprintf(serialBuf, 512, "TRACE1: ERR=%3d P=%3d D=%3d uCV=%3d CV=%3d T=%3d, TRACE2: ERR=%3d P=%3d D=%3d uCV=%3d CV=%3d T=%3d"
-                        , ip(substrateController.error),int(substrateController.p * 100), int(substrateController.d * 100), int(substrateController.uncappedCV * 100), int(substrateController.cv * 100), ip(substrateController.temperature) 
-                        , ip(sourceController.error),int(sourceController.p * 100), int(sourceController.d * 100), int(sourceController.uncappedCV * 100), int(sourceController.cv * 100), ip(sourceController.temperature));
-                    Serial.println(serialBuf);
+                    // Some code repetition
+                    pos += snprintf(serialBuf + pos, serialBufLen - pos
+                        , "TRACE1: ERR=%3d P=%3d D=%3d "
+                          "uCV=%3d CV=%3d T=%3d, "
+                        , ip(substrateController.error), int(substrateController.p * 100), int(substrateController.d * 100)
+                        , int(substrateController.uncappedCV * 100), int(substrateController.cv * 100), ip(substrateController.temperature));
+                            
+                    pos += snprintf(serialBuf + pos, serialBufLen - pos
+                        , "TRACE2: ERR=%3d P=%3d D=%3d "
+                          "uCV=%3d CV=%3d T=%3d"
+                        , ip(sourceController.error), int(sourceController.p * 100), int(sourceController.d * 100)
+                        , int(sourceController.uncappedCV * 100), int(sourceController.cv * 100), ip(sourceController.temperature));
                 }
+
+                // Try to send all the info in one buffer to avoid flickering in receiving terminal
+                Serial.println(serialBuf);
             }
         }
 
