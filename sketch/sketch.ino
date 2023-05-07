@@ -1,15 +1,13 @@
 #include <MAX6675_Thermocouple.h>
 
-// TODO: 
-// 1. use SUBLIMATION_TIME_MS
-// 2. Implement power limit
-
 // ############################################## USER SET VARIABLES
+static constexpr float      SUBSTRATE_POWER_LIMIT = 1.0;
 static constexpr float      SUBSTRATE_TEMP_MULT = 1.04; // increases target temp for PID calculations
 static constexpr int        SUBSTRATE_TEMP = 420;
 static constexpr float      SUBSTRATE_KP   = 0.02;
 static constexpr float      SUBSTRATE_KD   = 0.50;
 
+static constexpr float      SOURCE_POWER_LIMIT = 1.0;
 static constexpr float      SOURCE_TEMP_MULT = 1.06;
 static constexpr int        SOURCE_TEMP = 480;
 static constexpr float      SOURCE_KP   = 0.02;
@@ -33,11 +31,11 @@ bool          depositionEnded = false;
 class Controller {
 public:
     Controller(
-        int tcGNDpin, int tc5Vpin, int tcSCK, int tcCS, int tcSO, 
-        int relayControlPin, int relayGroundPin, 
-        int targetTemp, float tempMult, float kp, float kd)
+        int tcGNDpin, int tc5Vpin, int tcSCK, int tcCS, int tcSO
+        , int relayControlPin, int relayGroundPin, float powerLimit
+        , int targetTemp, float tempMult, float kp, float kd)
     : tcGNDpin(tcGNDpin), tc5Vpin(tc5Vpin), thermocouple(tcSCK, tcCS, tcSO)
-    , relayControlPin(relayControlPin), relayGroundPin(relayGroundPin)
+    , relayControlPin(relayControlPin), relayGroundPin(relayGroundPin), powerLimit(powerLimit)
     , targetTemp(targetTemp), tempMult(tempMult), kp(kp), kd(kd) {}
 
     void setup() {
@@ -57,6 +55,7 @@ public:
     // Logic
     int controlValue = 0; // [0..1000], represents how ms in seconds relay will be ON
     float previousError = 0;
+    const float powerLimit;
     const int targetTemp;
     const float tempMult;
     const float kp, kd;
@@ -111,7 +110,7 @@ public:
         if (depositionEnded)
             cv = 0.0;
 
-        cv = min(1.0, max(0.0, uncappedCV));
+        cv = min(powerLimit, max(0.0, uncappedCV));
 
         // Switch time is 10 ms, so avoid any time intervals < 10ms
         if (cv < 0.01) cv = 0.0;
@@ -142,8 +141,8 @@ public:
     static const size_t serialBufLen = 1024;
     char serialBuf[serialBufLen];
 
-    Controller substrateController {2, 3,  4,  5,  6, 22, 23, SUBSTRATE_TEMP, SUBSTRATE_TEMP_MULT, SUBSTRATE_KP, SUBSTRATE_KD}; // Substrate
-    Controller sourceController    {8, 9, 10, 11, 12, 24, 25, SOURCE_TEMP,    SOURCE_TEMP_MULT,    SOURCE_KP,    SOURCE_KD   }; // Source
+    Controller substrateController {2, 3,  4,  5,  6, 22, 23, SUBSTRATE_POWER_LIMIT, SUBSTRATE_TEMP, SUBSTRATE_TEMP_MULT, SUBSTRATE_KP, SUBSTRATE_KD}; // Substrate
+    Controller sourceController    {8, 9, 10, 11, 12, 24, 25, SOURCE_POWER_LIMIT,    SOURCE_TEMP,    SOURCE_TEMP_MULT,    SOURCE_KP,    SOURCE_KD   }; // Source
 
     unsigned long relayPollTime = 0;
     unsigned long nextReadTime = 0;
