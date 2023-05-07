@@ -1,7 +1,6 @@
 #include <MAX6675_Thermocouple.h>
 
-// #############################
-// USER SET VARIABLES
+// ############################################## USER SET VARIABLES
 static constexpr int        SUBSTRATE_TEMP = 420;
 static constexpr float      SUBSTRATE_KP   = 0.02;
 static constexpr float      SUBSTRATE_KD   = 0.50;
@@ -9,17 +8,20 @@ static constexpr float      SUBSTRATE_KD   = 0.50;
 static constexpr int        SOURCE_TEMP = 480;
 static constexpr float      SOURCE_KP   = 0.02;
 static constexpr float      SOURCE_KD   = 0.50;
-// #############################
 
+static constexpr bool       TRACE_ENABLED = true;
+// ############################################## USER SET VARIABLES
+
+
+// For more predictable logic calculations, use one time for each loop call
 unsigned long currentTime = 0;
-char serialBuf[512]; 
 static constexpr int NUM_TEMP_READS = 4;
 static constexpr int TEMP_READ_INTERVAL = 1000 / NUM_TEMP_READS;
 
 inline int ip(float d) { return (int)d; }
 inline int fp(float d) { return (int)((d - (int)d) * 100); }
 
-
+// Controls PID, relays and thermocouples. 2 for reactor, one for both source and substrate
 class Controller {
 public:
     Controller(
@@ -44,7 +46,6 @@ public:
         digitalWrite(tc5Vpin, HIGH);
     }
 
-public:
     // Logic
     int controlValue = 0; // [0..1000], represents how ms in seconds relay will be ON
     float previousError = 0;
@@ -64,6 +65,7 @@ public:
     bool relayState = false;
 
     bool pollLogic() {
+        // Read temperature multiple times and find average to reduce noise
         const float temp = thermocouple.readCelsius(); 
         readings[readingIndex] = temp;
         readingIndex = (readingIndex + 1) % NUM_TEMP_READS;
@@ -87,6 +89,7 @@ public:
     float temperature = 0, error = 0, deriv = 0, p = 0, d = 0, uncappedCV = 0, cv = 0;
 
     int calculateControlValue(float inTemperature) {
+        // Save all these intermediate values to trace them
         temperature = inTemperature;
         error = targetTemp - temperature;
         deriv = error - previousError;
@@ -120,18 +123,21 @@ public:
     }
 };
 
+// Manages 2 controllers, sends data through serial
 class Reactor {
 public:
-    Controller c1 {2, 3, 4, 5, 6, 22, 23, SUBSTRATE_TEMP, SUBSTRATE_KP, SUBSTRATE_KD}; // Substrate
-    Controller c2 {8, 9, 10, 11, 12, 24, 25, SOURCE_TEMP, SOURCE_KP, SOURCE_KD}; // Source
+    char serialBuf[512];
+
+    Controller substrateController {2, 3, 4, 5, 6, 22, 23, SUBSTRATE_TEMP, SUBSTRATE_KP, SUBSTRATE_KD}; // Substrate
+    Controller sourceController {8, 9, 10, 11, 12, 24, 25, SOURCE_TEMP, SOURCE_KP, SOURCE_KD}; // Source
 
     unsigned long relayPollTime = 0;
     unsigned long nextReadTime = 0;
     unsigned long relayCycleStart = 0;
 
     void setup() {
-        c1.setup();
-        c2.setup();
+        substrateController.setup();
+        sourceController.setup();
     }
 
     void loop() {
@@ -140,28 +146,30 @@ public:
         if(currentTime >= nextReadTime) {
             nextReadTime += TEMP_READ_INTERVAL;
             
-            c1.pollLogic();
-            bool calcLogic = c2.pollLogic();
+            substrateController.pollLogic();
+            bool calcLogic = sourceController.pollLogic();
 
             if(calcLogic) {
                 relayCycleStart = currentTime;
 
                 snprintf(serialBuf, 512, "INFO: %lu,%d.%02d,%d,%d.%02d,%d" 
-                    , currentTime / 1000, ip(c1.temperature), fp(c1.temperature), int(c1.cv * 100), ip(c2.temperature), fp(c2.temperature), int(c2.cv * 100));
+                    , currentTime / 1000, ip(substrateController.temperature), fp(substrateController.temperature), int(substrateController.cv * 100), ip(sourceController.temperature), fp(sourceController.temperature), int(sourceController.cv * 100));
                 Serial.println(serialBuf);  
 
-                snprintf(serialBuf, 512, "TRACE1: ERR=%3d P=%3d D=%3d uCV=%3d CV=%3d T=%3d, TRACE2: ERR=%3d P=%3d D=%3d uCV=%3d CV=%3d T=%3d"
-                    , ip(c1.error),int(c1.p * 100), int(c1.d * 100), int(c1.uncappedCV * 100), int(c1.cv * 100), ip(c1.temperature) 
-                    , ip(c2.error),int(c2.p * 100), int(c2.d * 100), int(c2.uncappedCV * 100), int(c2.cv * 100), ip(c2.temperature));
-                Serial.println(serialBuf);
+                if(TRACE_ENABLED) {
+                    snprintf(serialBuf, 512, "TRACE1: ERR=%3d P=%3d D=%3d uCV=%3d CV=%3d T=%3d, TRACE2: ERR=%3d P=%3d D=%3d uCV=%3d CV=%3d T=%3d"
+                        , ip(substrateController.error),int(substrateController.p * 100), int(substrateController.d * 100), int(substrateController.uncappedCV * 100), int(substrateController.cv * 100), ip(substrateController.temperature) 
+                        , ip(sourceController.error),int(sourceController.p * 100), int(sourceController.d * 100), int(sourceController.uncappedCV * 100), int(sourceController.cv * 100), ip(sourceController.temperature));
+                    Serial.println(serialBuf);
+                }
             }
         }
 
         // Only poll relay once a millisecond
         if(currentTime != relayPollTime) {
             relayPollTime = currentTime;
-            c1.pollRelay(currentTime - relayCycleStart);
-            c2.pollRelay(currentTime - relayCycleStart);
+            substrateController.pollRelay(currentTime - relayCycleStart);
+            sourceController.pollRelay(currentTime - relayCycleStart);
         }
     }
 };
