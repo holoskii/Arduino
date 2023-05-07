@@ -3,12 +3,12 @@
 // #############################
 // USER SET VARIABLES
 static constexpr int        SUBSTRATE_TEMP = 420;
-static constexpr double     SUBSTRATE_KP   = 0.02;
-static constexpr double     SUBSTRATE_KD   = 0.50;
+static constexpr float      SUBSTRATE_KP   = 0.02;
+static constexpr float      SUBSTRATE_KD   = 0.50;
 
 static constexpr int        SOURCE_TEMP = 480;
-static constexpr double     SOURCE_KP   = 0.02;
-static constexpr double     SOURCE_KD   = 0.50;
+static constexpr float      SOURCE_KP   = 0.02;
+static constexpr float      SOURCE_KD   = 0.50;
 // #############################
 
 unsigned long currentTime = 0;
@@ -16,8 +16,8 @@ char serialBuf[512];
 static constexpr int NUM_TEMP_READS = 4;
 static constexpr int TEMP_READ_INTERVAL = 1000 / NUM_TEMP_READS;
 
-inline int ip(double d) { return (int)d; }
-inline int fp(double d) { return (int)((d - (int)d) * 100); }
+inline int ip(float d) { return (int)d; }
+inline int fp(float d) { return (int)((d - (int)d) * 100); }
 
 
 class Controller {
@@ -47,12 +47,12 @@ public:
 public:
     // Logic
     int controlValue = 0; // [0..1000], represents how ms in seconds relay will be ON
-    double previousError = 0;
+    float previousError = 0;
     const int targetTemp;
-    const double kp, kd;
+    const float kp, kd;
 
     // Thermocouple
-    double readings[NUM_TEMP_READS] = { 0 };
+    float readings[NUM_TEMP_READS] = { 0 };
     int readingIndex = 0;
     const int tcGNDpin;
     const int tc5Vpin;
@@ -64,30 +64,30 @@ public:
     bool relayState = false;
 
     bool pollLogic() {
-        double tempDouble = thermocouple.readCelsius();
-        double temp = tempDouble; 
+        float tempDouble = thermocouple.readCelsius();
+        float temp = tempDouble; 
         readings[readingIndex] = temp;
         readingIndex = (readingIndex + 1) % NUM_TEMP_READS;
 
         if(readingIndex != 0)
             return false;
 
-        double averageTemp = calculateAverageTemp();
+        float averageTemp = calculateAverageTemp();
         controlValue = calculateControlValue(averageTemp);
         return true;
     }
 
-     double calculateAverageTemp() {
-        double sum = 0;
+     float calculateAverageTemp() {
+        float sum = 0;
         for (int i = 0; i < NUM_TEMP_READS; i++) {
             sum += readings[i];
         }
         return sum / NUM_TEMP_READS;
     }
 
-    double temperature = 0, error = 0, deriv = 0, p = 0, d = 0, uncappedCV = 0, cv = 0;
+    float temperature = 0, error = 0, deriv = 0, p = 0, d = 0, uncappedCV = 0, cv = 0;
 
-    int calculateControlValue(double inTemperature) {
+    int calculateControlValue(float inTemperature) {
         temperature = inTemperature;
         error = targetTemp - temperature;
         deriv = error - previousError;
