@@ -2,11 +2,13 @@
 
 // #############################
 // USER SET VARIABLES
-#define SUBSTRATE_TEMP 420
-#define SOURCE_TEMP 480
+static constexpr int        SUBSTRATE_TEMP = 420;
+static constexpr double     SUBSTRATE_KP   = 0.02;
+static constexpr double     SUBSTRATE_KD   = 0.50;
 
-#define KP 0.02
-#define KD 0.50
+static constexpr int        SOURCE_TEMP = 480;
+static constexpr double     SOURCE_KP   = 0.02;
+static constexpr double     SOURCE_KD   = 0.50;
 // #############################
 
 unsigned long currentTime = 0;
@@ -20,8 +22,13 @@ inline int fp(double d) { return (int)((d - (int)d) * 100); }
 
 class Controller {
 public:
-    Controller(int tcGND, int tc5V, int tcSCK, int tcCS, int tcSO, int irelayControlPin, int irelayGroundPin, int itargetTemp)
-    : tcGNDpin(tcGND), tc5Vpin(tc5V), thermocouple(tcSCK, tcCS, tcSO), relayControlPin(irelayControlPin), relayGroundPin(irelayGroundPin), targetTemp(itargetTemp) {}
+    Controller(
+        int tcGND, int tc5V, int tcSCK, int tcCS, int tcSO, 
+        int irelayControlPin, int irelayGroundPin, 
+        int itargetTemp, float ikp, float ikd)
+    : tcGNDpin(tcGND), tc5Vpin(tc5V), thermocouple(tcSCK, tcCS, tcSO)
+    , relayControlPin(irelayControlPin), relayGroundPin(irelayGroundPin)
+    , targetTemp(itargetTemp), kp(ikp), kd(ikd) {}
 
     void setup() {
         // setup relay
@@ -41,15 +48,15 @@ public:
     // Logic
     int controlValue = 0; // [0..1000], represents how ms in seconds relay will be ON
     double previousError = 0;
-    int targetTemp;
-    double kp = KP, kd = KD;
+    const int targetTemp;
+    const double kp, kd;
 
     // Thermocouple
     double readings[NUM_TEMP_READS] = { 0 };
     int readingIndex = 0;
-    int tcGNDpin;
-    int tc5Vpin;
-    MAX6675_Thermocouple thermocouple;
+    const int tcGNDpin;
+    const int tc5Vpin;
+    const MAX6675_Thermocouple thermocouple;
 
     // Relay
     int relayControlPin;
@@ -116,8 +123,8 @@ public:
 
 class Reactor {
 public:
-    Controller c1 {2, 3, 4, 5, 6, 22, 23, SUBSTRATE_TEMP}; // Substrate
-    Controller c2 {8, 9, 10, 11, 12, 24, 25, SOURCE_TEMP}; // Source
+    Controller c1 {2, 3, 4, 5, 6, 22, 23, SUBSTRATE_TEMP, SUBSTRATE_KP, SUBSTRATE_KD}; // Substrate
+    Controller c2 {8, 9, 10, 11, 12, 24, 25, SOURCE_TEMP, SOURCE_KP, SOURCE_KD}; // Source
 
     unsigned long relayPollTime = 0;
     unsigned long nextReadTime = 0;
