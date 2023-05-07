@@ -59,20 +59,19 @@ public:
     const MAX6675_Thermocouple thermocouple;
 
     // Relay
-    int relayControlPin;
-    int relayGroundPin;
+    const int relayControlPin;
+    const int relayGroundPin;
     bool relayState = false;
 
     bool pollLogic() {
-        float tempDouble = thermocouple.readCelsius();
-        float temp = tempDouble; 
+        const float temp = thermocouple.readCelsius(); 
         readings[readingIndex] = temp;
         readingIndex = (readingIndex + 1) % NUM_TEMP_READS;
 
         if(readingIndex != 0)
             return false;
 
-        float averageTemp = calculateAverageTemp();
+        const float averageTemp = calculateAverageTemp();
         controlValue = calculateControlValue(averageTemp);
         return true;
     }
@@ -157,7 +156,6 @@ public:
                 Serial.println(serialBuf);
             }
         }
-
 
         // Only poll relay once a millisecond
         if(currentTime != relayPollTime) {
