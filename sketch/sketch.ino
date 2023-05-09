@@ -1,25 +1,25 @@
 #include <MAX6675_Thermocouple.h>
 
 // ############################################## USER SET VARIABLES
-static constexpr float      SUBSTRATE_POWER_LIMIT = 1.0;
-static constexpr float      SUBSTRATE_TEMP_MULT = 1.04; // increases target temp for PID calculations
+static constexpr double     SUBSTRATE_POWER_LIMIT = 1.0;
+static constexpr double     SUBSTRATE_TEMP_MULT = 1.04; // increases target temp for PID calculations
 static constexpr int        SUBSTRATE_TEMP = 420;
-static constexpr float      SUBSTRATE_KP   = 0.02;
-static constexpr float      SUBSTRATE_KD   = 0.50;
+static constexpr double     SUBSTRATE_KP   = 0.02;
+static constexpr double     SUBSTRATE_KD   = 0.50;
 
-static constexpr float      SOURCE_POWER_LIMIT = 1.0;
-static constexpr float      SOURCE_TEMP_MULT = 1.06;
+static constexpr double     SOURCE_POWER_LIMIT = 1.0;
+static constexpr double     SOURCE_TEMP_MULT = 1.06;
 static constexpr int        SOURCE_TEMP = 480;
-static constexpr float      SOURCE_KP   = 0.02;
-static constexpr float      SOURCE_KD   = 1.00;
+static constexpr double     SOURCE_KP   = 0.02;
+static constexpr double     SOURCE_KD   = 1.00;
 
 static constexpr long       DEPOSITION_TIME_MS = 10 * 60 * 1000;
 static constexpr bool       TRACE_ENABLED = true;
 // ############################################## USER SET VARIABLES
 
 
-inline int ip(float d) { return (int)d; }
-inline int fp(float d) { return (int)((d - (int)d) * 100); }
+inline int ip(double d) { return (int)d; }
+inline int fp(double d) { return (int)((d - (int)d) * 100); }
 
 static constexpr int NUM_TEMP_READS = 4;
 static constexpr int TEMP_READ_INTERVAL = 1000 / NUM_TEMP_READS;
@@ -32,8 +32,8 @@ class Controller {
 public:
     Controller(
         int tcGNDpin, int tc5Vpin, int tcSCK, int tcCS, int tcSO
-        , int relayControlPin, int relayGroundPin, float powerLimit
-        , int targetTemp, float tempMult, float kp, float kd)
+        , int relayControlPin, int relayGroundPin, double powerLimit
+        , int targetTemp, double tempMult, double kp, double kd)
     : tcGNDpin(tcGNDpin), tc5Vpin(tc5Vpin), thermocouple(tcSCK, tcCS, tcSO)
     , relayControlPin(relayControlPin), relayGroundPin(relayGroundPin), powerLimit(powerLimit)
     , targetTemp(targetTemp), tempMult(tempMult), kp(kp), kd(kd) {}
@@ -54,14 +54,14 @@ public:
 
     // Logic
     int controlValue = 0; // [0..1000], represents how ms in seconds relay will be ON
-    float previousError = 0;
-    const float powerLimit;
+    double previousError = 0;
+    const double powerLimit;
     const int targetTemp;
-    const float tempMult;
-    const float kp, kd;
+    const double tempMult;
+    const double kp, kd;
 
     // Thermocouple
-    float readings[NUM_TEMP_READS] = { 0 };
+    double readings[NUM_TEMP_READS] = { 0 };
     int readingIndex = 0;
     const int tcGNDpin;
     const int tc5Vpin;
@@ -74,29 +74,29 @@ public:
 
     bool pollLogic() {
         // Read temperature multiple times and find average to reduce noise
-        const float temp = thermocouple.readCelsius(); 
+        const double temp = thermocouple.readCelsius(); 
         readings[readingIndex] = temp;
         readingIndex = (readingIndex + 1) % NUM_TEMP_READS;
 
         if(readingIndex != 0)
             return false;
 
-        const float averageTemp = calculateAverageTemp();
+        const double averageTemp = calculateAverageTemp();
         controlValue = calculateControlValue(averageTemp);
         return true;
     }
 
-     float calculateAverageTemp() {
-        float sum = 0;
+     double calculateAverageTemp() {
+        double sum = 0;
         for (int i = 0; i < NUM_TEMP_READS; i++) {
             sum += readings[i];
         }
         return sum / NUM_TEMP_READS;
     }
 
-    float temperature = 0, error = 0, deriv = 0, p = 0, d = 0, uncappedCV = 0, cv = 0;
+    double temperature = 0, error = 0, deriv = 0, p = 0, d = 0, uncappedCV = 0, cv = 0;
 
-    int calculateControlValue(float inTemperature) {
+    int calculateControlValue(double inTemperature) {
         // Save all these intermediate values to trace them
         temperature = inTemperature;
         error = targetTemp * tempMult - temperature;
@@ -108,7 +108,7 @@ public:
         uncappedCV = p + d;
 
         if (depositionEnded)
-            cv = 0.0;
+            return 0;
 
         cv = min(powerLimit, max(0.0, uncappedCV));
 
@@ -122,10 +122,6 @@ public:
     void pollRelay(unsigned long elapsedCycleTime) {
         relayState = (elapsedCycleTime < controlValue);
 
-        relayState = true;
-        if(elapsedCycleTime >= controlValue) {
-            relayState = false;
-        }
         else if (elapsedCycleTime >= 1000) {
             Serial.print("Overshoot\nOvershoot\nOvershoot\n");
             relayState = controlValue == 1000;
