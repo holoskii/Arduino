@@ -8,10 +8,12 @@
 7. In second split run ard_plot
 
 # Functions
-ard_compile    # Compile and upload the sketch into Arduino
-ard_read       # Read and save to file in append mode
-ard_read_clear # Read and save to file, delete old data
-ard_plot       # Run python script and show plot in real-time
+<pre>
+ard_compile    # Compile and upload the sketch into Arduino  
+ard_read       # Read and save to file in append mode  
+ard_read_clear # Read and save to file, delete old data  
+ard_plot       # Run python script and show plot in real-time  
+</pre>
 
 # Setup
 ## Hardware setup
