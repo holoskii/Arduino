@@ -122,7 +122,7 @@ public:
     void pollRelay(unsigned long elapsedCycleTime) {
         relayState = (elapsedCycleTime < controlValue);
 
-        else if (elapsedCycleTime >= 1000) {
+        if (elapsedCycleTime >= 1000) {
             Serial.print("Overshoot\nOvershoot\nOvershoot\n");
             relayState = controlValue == 1000;
         }
