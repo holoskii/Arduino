@@ -1,18 +1,21 @@
 #include <MAX6675_Thermocouple.h>
 
 // ############################################## USER SET VARIABLES
+//                          SUBSTRATE
 static constexpr double     SUBSTRATE_POWER_LIMIT = 1.0;
-static constexpr double     SUBSTRATE_TEMP_MULT = 1.04; // increases target temp for PID calculations
+static constexpr double     SUBSTRATE_TEMP_MULT = = 1.026; // increases target temp for PID calculations
 static constexpr int        SUBSTRATE_TEMP = 420;
 static constexpr double     SUBSTRATE_KP   = 0.02;
-static constexpr double     SUBSTRATE_KD   = 0.50;
+static constexpr double     SUBSTRATE_KD   = 0.35;
 
+//                          SOURCE
 static constexpr double     SOURCE_POWER_LIMIT = 1.0;
-static constexpr double     SOURCE_TEMP_MULT = 1.06;
+static constexpr double     SOURCE_TEMP_MULT = 1.039;
 static constexpr int        SOURCE_TEMP = 480;
 static constexpr double     SOURCE_KP   = 0.02;
-static constexpr double     SOURCE_KD   = 1.00;
+static constexpr double     SOURCE_KD   = 0.25;
 
+// COMMON
 static constexpr long       DEPOSITION_TIME_MS = 10 * 60 * 1000;
 static constexpr bool       TRACE_ENABLED = true;
 // ############################################## USER SET VARIABLES
