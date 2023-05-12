@@ -2,7 +2,9 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import sys
 import time
+from datetime import datetime
 
+custom_note = 'custom_note'
 file_path = 'out.txt'
 
 def read_file():
@@ -46,8 +48,10 @@ def read_file():
     # Build title
     temp1 = temp1_values[-1] if len(temp1_values) > 0 else 0
     temp2 = temp2_values[-1] if len(temp2_values) > 0 else 0
-    temps_str = "Substrate B: {:3.01f}°C, Source R: {:3.01f}°C".format(temp1, temp2);
-    title = f'{temps_str}'
+    temps_str = "Substrate B: {:3.01f}°C, Source R: {:3.01f}°C".format(temp1, temp2)
+    date_time_now = datetime.now() # current date and time
+    d = date_time_now.strftime("%H:%M:%S, %d %b, %Y")
+    title = f'{custom_note}. {d}\n{temps_str}'
     return max_time_value, time_values, temp1_values, control1_values, temp2_values, control2_values, title
 
 def update_graph(frame):
