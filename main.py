@@ -4,10 +4,11 @@ import sys
 import time
 from datetime import datetime
 
-custom_note = 'custom_note'
+custom_note = 'Testing coefficients'
 file_path = 'out.txt'
 
 def read_file():
+    i: int = 0
     time_values:     list[float] = []
     temp1_values:    list[float] = []
     control1_values: list[float] = []
@@ -38,12 +39,13 @@ def read_file():
                 continue
 
             # Assign data to corresponding lists
-            max_time_value = max(max_time_value, numbers[0] / 60)
-            time_values.append(numbers[0] / 60)
+            max_time_value = max(max_time_value, i)
+            time_values.append(i / 60)
             temp1_values.append(numbers[1])
             control1_values.append(numbers[2])
             temp2_values.append(numbers[3])
             control2_values.append(numbers[4])
+            i = i + 1
     
     # Build title
     temp1 = temp1_values[-1] if len(temp1_values) > 0 else 0
