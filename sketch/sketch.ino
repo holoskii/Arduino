@@ -3,21 +3,21 @@
 // ############################################## USER SET VARIABLES
 //                          SUBSTRATE
 static constexpr double     SUBSTRATE_POWER_LIMIT = 1.0;
-static constexpr double     SUBSTRATE_TEMP_MULT = = 1.026; // increases target temp for PID calculations
+static constexpr double     SUBSTRATE_TEMP_MULT   = 1.026; // increases target temp for PID calculations
 static constexpr int        SUBSTRATE_TEMP = 420;
 static constexpr double     SUBSTRATE_KP   = 0.02;
 static constexpr double     SUBSTRATE_KD   = 0.35;
 
 //                          SOURCE
 static constexpr double     SOURCE_POWER_LIMIT = 1.0;
-static constexpr double     SOURCE_TEMP_MULT = 1.039;
+static constexpr double     SOURCE_TEMP_MULT   = 1.039;
 static constexpr int        SOURCE_TEMP = 480;
 static constexpr double     SOURCE_KP   = 0.02;
 static constexpr double     SOURCE_KD   = 0.25;
 
 // COMMON
 static constexpr long       DEPOSITION_TIME_MS = 10 * 60 * 1000;
-static constexpr bool       TRACE_ENABLED = true;
+static constexpr bool       DEBUG_ENABLED = true;
 // ############################################## USER SET VARIABLES
 
 
@@ -169,7 +169,7 @@ public:
                 relayCycleStart = currentTime;
 
                 if (!depositionStarted) {
-                    if (sourceController.temperature >= sourceController.targetTemp && sourceController.error < 50) {
+                    if (sourceController.temperature >= sourceController.targetTemp && abs(sourceController.deriv) < 50) {
                         depositionStarted = true;
                         depositionStartTime = currentTime;
                     }
@@ -188,19 +188,23 @@ public:
                     , ip(substrateController.temperature), fp(substrateController.temperature), int(substrateController.cv * 100)
                     , ip(sourceController.temperature), fp(sourceController.temperature), int(sourceController.cv * 100));
 
-                if(TRACE_ENABLED) {
+                if(DEBUG_ENABLED) {
                     // Some code repetition
                     pos += snprintf(serialBuf + pos, serialBufLen - pos
                         , "TRACE1: ERR=%3d P=%3d D=%3d "
-                          "uCV=%3d CV=%3d T=%3d, "
+                          "uCV=%3d CV=%3d T=%3d\n"
                         , ip(substrateController.error), int(substrateController.p * 100), int(substrateController.d * 100)
                         , int(substrateController.uncappedCV * 100), int(substrateController.cv * 100), ip(substrateController.temperature));
                             
                     pos += snprintf(serialBuf + pos, serialBufLen - pos
                         , "TRACE2: ERR=%3d P=%3d D=%3d "
-                          "uCV=%3d CV=%3d T=%3d"
+                          "uCV=%3d CV=%3d T=%3d\n"
                         , ip(sourceController.error), int(sourceController.p * 100), int(sourceController.d * 100)
                         , int(sourceController.uncappedCV * 100), int(sourceController.cv * 100), ip(sourceController.temperature));
+                    
+                    pos += snprintf(serialBuf + pos, serialBufLen - pos
+                        , "TIMER: started=%d, ended=%d, started_at=%lu"
+                        , int(depositionStarted), int(depositionEnded), depositionStartTime);
                 }
 
                 // Try to send all the info in one buffer to avoid flickering in receiving terminal
