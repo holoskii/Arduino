@@ -191,13 +191,13 @@ public:
                 if(DEBUG_ENABLED) {
                     // Some code repetition
                     pos += snprintf(serialBuf + pos, serialBufLen - pos
-                        , "TRACE1: ERR=%3d P=%3d D=%3d "
+                        , "TRACE1(SUBSTR): ERR=%3d P=%3d D=%3d "
                           "uCV=%3d CV=%3d T=%3d\n"
                         , ip(substrateController.error), int(substrateController.p * 100), int(substrateController.d * 100)
                         , int(substrateController.uncappedCV * 100), int(substrateController.cv * 100), ip(substrateController.temperature));
                             
                     pos += snprintf(serialBuf + pos, serialBufLen - pos
-                        , "TRACE2: ERR=%3d P=%3d D=%3d "
+                        , "TRACE2(SOURCE): ERR=%3d P=%3d D=%3d "
                           "uCV=%3d CV=%3d T=%3d\n"
                         , ip(sourceController.error), int(sourceController.p * 100), int(sourceController.d * 100)
                         , int(sourceController.uncappedCV * 100), int(sourceController.cv * 100), ip(sourceController.temperature));
