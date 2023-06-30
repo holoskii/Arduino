@@ -3,17 +3,17 @@
 // ############################################## USER SET VARIABLES
 //                          SUBSTRATE
 static constexpr double     SUBSTRATE_POWER_LIMIT = 1.0;
-static constexpr double     SUBSTRATE_TEMP_MULT   = 1.026; // increases target temp for PID calculations
-static constexpr int        SUBSTRATE_TEMP = 420;
+static constexpr int        SUBSTRATE_TEMP_OFFSET = 5; // increases target temp for PID calculations
+static constexpr int        SUBSTRATE_TEMP = 400;
 static constexpr double     SUBSTRATE_KP   = 0.02;
-static constexpr double     SUBSTRATE_KD   = 0.35;
+static constexpr double     SUBSTRATE_KD   = 0.60;
 
 //                          SOURCE
 static constexpr double     SOURCE_POWER_LIMIT = 1.0;
-static constexpr double     SOURCE_TEMP_MULT   = 1.039;
-static constexpr int        SOURCE_TEMP = 480;
+static constexpr int        SOURCE_TEMP_OFFSET = 15;
+static constexpr int        SOURCE_TEMP = 430;
 static constexpr double     SOURCE_KP   = 0.02;
-static constexpr double     SOURCE_KD   = 0.25;
+static constexpr double     SOURCE_KD   = 0.40;
 
 // COMMON
 static constexpr long       DEPOSITION_TIME_MS = 10 * 60 * 1000;
@@ -36,10 +36,10 @@ public:
     Controller(
         int tcGNDpin, int tc5Vpin, int tcSCK, int tcCS, int tcSO
         , int relayControlPin, int relayGroundPin, double powerLimit
-        , int targetTemp, double tempMult, double kp, double kd)
+        , int targetTemp, double tempOffet, double kp, double kd)
     : tcGNDpin(tcGNDpin), tc5Vpin(tc5Vpin), thermocouple(tcSCK, tcCS, tcSO)
     , relayControlPin(relayControlPin), relayGroundPin(relayGroundPin), powerLimit(powerLimit)
-    , targetTemp(targetTemp), tempMult(tempMult), kp(kp), kd(kd) {}
+    , targetTemp(targetTemp), tempOffet(tempOffet), kp(kp), kd(kd) {}
 
     void setup() {
         // setup relay
@@ -60,7 +60,7 @@ public:
     double previousError = 0;
     const double powerLimit;
     const int targetTemp;
-    const double tempMult;
+    const double tempOffet;
     const double kp, kd;
 
     // Thermocouple
@@ -102,7 +102,7 @@ public:
     int calculateControlValue(double inTemperature) {
         // Save all these intermediate values to trace them
         temperature = inTemperature;
-        error = targetTemp * tempMult - temperature;
+        error = targetTemp + tempOffet - temperature;
         deriv = error - previousError;
         previousError = error;
         
@@ -140,8 +140,8 @@ public:
     static const size_t serialBufLen = 1024;
     char serialBuf[serialBufLen];
 
-    Controller substrateController {2, 3,  4,  5,  6, 22, 23, SUBSTRATE_POWER_LIMIT, SUBSTRATE_TEMP, SUBSTRATE_TEMP_MULT, SUBSTRATE_KP, SUBSTRATE_KD}; // Substrate
-    Controller sourceController    {8, 9, 10, 11, 12, 24, 25, SOURCE_POWER_LIMIT,    SOURCE_TEMP,    SOURCE_TEMP_MULT,    SOURCE_KP,    SOURCE_KD   }; // Source
+    Controller substrateController {2, 3,  4,  5,  6, 22, 23, SUBSTRATE_POWER_LIMIT, SUBSTRATE_TEMP, SUBSTRATE_TEMP_OFFSET, SUBSTRATE_KP, SUBSTRATE_KD}; // Substrate
+    Controller sourceController    {8, 9, 10, 11, 12, 24, 25, SOURCE_POWER_LIMIT,    SOURCE_TEMP,    SOURCE_TEMP_OFFSET,    SOURCE_KP,    SOURCE_KD   }; // Source
 
     unsigned long relayPollTime = 0;
     unsigned long nextReadTime = 0;
@@ -168,17 +168,17 @@ public:
             if(calcLogic) {
                 relayCycleStart = currentTime;
 
-                if (!depositionStarted) {
-                    if (sourceController.temperature >= sourceController.targetTemp && abs(sourceController.deriv) < 50) {
-                        depositionStarted = true;
-                        depositionStartTime = currentTime;
-                    }
-                }
-                else {
-                    if (currentTime - depositionStartTime > DEPOSITION_TIME_MS) {
-                        depositionEnded = true;
-                    }
-                }
+                // if (!depositionStarted) {
+                //     if (sourceController.temperature >= sourceController.targetTemp * 0.99 && abs(sourceController.deriv) < 50) {
+                //         depositionStarted = true;
+                //         depositionStartTime = currentTime;
+                //     }
+                // }
+                // else {
+                //     if (currentTime - depositionStartTime > DEPOSITION_TIME_MS) {
+                //         depositionEnded = true;
+                //     }
+                // }
 
                 int pos = snprintf(serialBuf, serialBufLen
                     , "INFO: %lu,"

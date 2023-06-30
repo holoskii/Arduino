@@ -1,0 +1,50 @@
+Full temperature range
+Substrate 300 - 420
+Source 450 - 500
+
+
+
+#############################################
+1a. 300 + 450 - done
+sub: 0.03, 1.00
+src: 0.03, 1.00
+Sub - big overshoot. Less kp, more kd
+source - 15 deg error. A bit more kp, less kd
+
+sub: 0.015, 1.00
+src: 0.05, 0.50
+
+
+1b. 300 + 450 - improvement, not done
+
+############################################
+### 2a. 360 + 475
+sub: 0.015, 1.00
+src: 0.05, 0.50
+natunil zalupu
+
+### 2b. 360 + 475
+
+
+
+
+
+3. 420 + 500
+sub: 0.02, 0.60
+src: 0.02, 0.40
+slighly dampen substrate
+
+source offset - 21
+substrate offset - 11
+
+
+
+
+
+
+
+static constexpr double     SUBSTRATE_TEMP_MULT   = 1.026; // increases target temp for PID calculations
+static constexpr double     SOURCE_TEMP_MULT   = 1.039;
+
+
+
