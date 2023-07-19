@@ -4,7 +4,7 @@ import sys
 import time
 from datetime import datetime
 
-custom_note = 'sub: 400, 0.02, 0.60. src: 430, 0.02, 0.40'
+custom_note = ''
 file_path = 'out.txt'
 
 def read_file():
@@ -18,6 +18,10 @@ def read_file():
 
     with open(file_path, 'r') as file:
         for line in file:
+            if line.startswith("START: "):
+                custom_note = line[len("START: "):-1]
+                continue
+
             # Check that the line looks valid
             if len(line) <= 1 or not line.startswith("INFO"):
                 continue
@@ -53,7 +57,7 @@ def read_file():
     temps_str = "Substrate Blue {:3.01f}°C, Source Red: {:3.01f}°C".format(temp1, temp2)
     date_time_now = datetime.now() # current date and time
     d = date_time_now.strftime("%H:%M:%S, %d %b, %Y")
-    title = f'{custom_note}. {d}\n{temps_str}'
+    title = f'{custom_note}\n{temps_str}; {d}'
     return max_time_value, time_values, temp1_values, control1_values, temp2_values, control2_values, title
 
 def update_graph(frame):
