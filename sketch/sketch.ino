@@ -180,8 +180,8 @@ public:
      */
     void sendParameters() {
         int pos = snprintf(serialBuf, serialBufLen
-            , "START: SUBSTR: T=%3d TO=%3d KP=%d.%02d KD=%d.%02d; "
-                "SUBSTR: T=%3d TO=%3d KP=%d.%02d KD=%d.%02d\n\n"
+            , "START: Substrate: T=(%3d+%2d) PD=(%d.%02d,%d.%02d); "
+                "Source: T=(%3d+%2d) PD=(%d.%02d,%d.%02d)\n\n"
             , SUBSTRATE_TEMP, SUBSTRATE_TEMP_OFFSET, ip(SUBSTRATE_KP), fp(SUBSTRATE_KP), ip(SUBSTRATE_KD), fp(SUBSTRATE_KD)
             , SOURCE_TEMP, SOURCE_TEMP_OFFSET, ip(SOURCE_KP), fp(SOURCE_KP), ip(SOURCE_KD), fp(SOURCE_KD));
         assert(pos < serialBufLen);
