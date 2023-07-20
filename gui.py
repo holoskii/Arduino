@@ -10,25 +10,13 @@ import os
 import subprocess
 from functools import partial
 
-# UI
-# Status button: green/red
-# start
-# stop
-# compile
-# clear
-
-
-# Keep track of sunprocess that reads serial
-# Buttons clean file
-# Start reading
-# Compile new code and start reading
-
-file_path = 'out.txt'
+file_path = '/home/maivas/Arduino/out.txt'
 
 class Application(tk.Tk):
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
         self.geometry("1600x900")
+        self.title("Hohol production")
 
         self.fig = Figure(figsize=(5, 4), dpi=100)
         self.ax = self.fig.add_subplot(111)
@@ -42,93 +30,83 @@ class Application(tk.Tk):
 
         bottom_frame = tk.Frame(self, height=100)
         bottom_frame.pack(side=tk.BOTTOM, pady=10)
-        
-        self.setup_bottol_frame(bottom_frame)
-        self.process: subprocess = None
 
-    def update_periodically(self, process_holder):
-        print('update_periodically')
-        try:
-            if process_holder[0] is not None and process_holder[0].poll() is None:
-                self.buttons['Status'].configure(bg="green")
-            else:
-                self.buttons['Status'].configure(bg="red")
-        except:
-            print('Exception')
-        self.after(500, self.update_periodically, process_holder)  # Reschedule event in 500 ms
+        self.process_holder = [None]
+        self.setup_gui(bottom_frame)
+        self.setup_buttons(bottom_frame)
 
-    def status_button_callback(self, process_holder):
-        None
-
-    def compile_button_callback(self):
-        print("Arduino compiling")
-        return_value: int = os.system("~/Arduino/env/arduino-cli compile --fqbn arduino:avr:mega ~/Arduino/sketch --clean")
-        if return_value != 0:
-            messagebox.showerror(title=None, message='pizes')
-    
-    def start_button_callback(self, process_holder):
-        print("Start button")
-        command = "sleep 120"
-        process_holder[0] = subprocess.Popen(command, shell=True)
-
-
-    def stop_button_callback(self, process_holder):
-        print("Stopping the process")
-        if process_holder[0] is not None:
-            process_holder[0].terminate()
-        process_holder[0] = None
-        
-
-    def setup_bottol_frame(self, parent):
-        # Define the command you want to execute
-        command = "sleep 120"
-
-        # Execute the command in the background
-        self.process_holder = [None] # subprocess.Popen(command, shell=True)
-        self.update_periodically(self.process_holder)
-
-        # Create entries with labels and descriptions in 1st column
-        labels_1st = ['Substrate1', 'Substrate2', 'Substrate3', 'Substrate4']
-
-        tk.Label(parent, text='Substrate1').grid(row=0, column=1,padx=10,pady=10)
+    def setup_gui(self, parent):
+        labels = ['Temperature', 'TempOffset', 'KP', 'KD']
+        tk.Label(parent, text='Substrate').grid(row=0, column=1,padx=10,pady=10)
         for i in range(4):
-            tk.Label(parent, text=labels_1st[i]).grid(row=i+1, column=0)
+            tk.Label(parent, text=labels[i]).grid(row=i+1, column=0)
             tk.Entry(parent).grid(row=i+1, column=1)
-
-        # Create entries with labels and descriptions in 2nd column
-        labels_2nd = ['Source1', 'Source2', 'Source3', 'Source4']
 
         tk.Label(parent, text='Source').grid(row=0, column=4, padx=10, pady=10)
         for i in range(4):
-            tk.Label(parent, text=labels_2nd[i]).grid(row=i+1, column=3, padx=10, pady=10)
+            tk.Label(parent, text=labels[i]).grid(row=i+1, column=3, padx=10, pady=10)
             tk.Entry(parent).grid(row=i+1, column=4, padx=10, pady=10)
 
         # Create entries in 3rd column
-        labels_3rd = ['Time1', 'Time1', 'Time1', 'Time1']
-
+        labels_3rd = ['Name', 'Timer', 'Median', 'Sublimation Time']
         for i in range(4):
             tk.Label(parent, text=labels_3rd[i]).grid(row=i+1, column=5, padx=10, pady=10)
             tk.Entry(parent).grid(row=i+1, column=6)
 
-        self.buttons:Dict[str, tk.Button] = {}
-        button_properties = [['Status', self.status_button_callback], ['Start', self.start_button_callback], ['Stop', self.stop_button_callback]]
 
-        i: int = 0
-        for button_property in button_properties:
-            b = tk.Button(parent, command=partial(button_property[1], self.process_holder), text=button_property[0])
-            b.grid(row=i+1, column=7, rowspan=1, padx=10, pady=10)
-            self.buttons[button_property[0]]=b
-            i+=1
+    def status_button_callback(self):
+        None
+    
+    def start_button_callback(self):
+        print("Start button")
+        command = "sleep 120"
+        self.process_holder[0] = subprocess.Popen(command, shell=True)
 
+    def stop_button_callback(self):
+        print("Stopping the process")
+        if self.process_holder[0] is not None:
+            self.process_holder[0].terminate()
+        self.process_holder[0] = None      
+
+    def update_periodically(self):
+        # print('update_periodically')
         if self.process_holder[0] is not None and self.process_holder[0].poll() is None:
             self.buttons['Status'].configure(bg="green")
         else:
             self.buttons['Status'].configure(bg="red")
+        self.after(50, self.update_periodically)  
 
+    def compile_button_callback(self):
+        self.stop_button_callback()
+        print("Arduino compiling")
+        return_value: int = os.system("~/Arduino/env/arduino-cli compile --fqbn arduino:avr:mega ~/Arduino/sketch --clean")
+        if return_value != 0:
+            messagebox.showerror(title=None, message='pizes')
+
+    def clear_button_callback(self):
+        self.stop_button_callback()
+        with open(file_path, 'w') as file:
+            file.truncate(0)
+
+    def setup_buttons(self, parent):
+        self.buttons:Dict[str, tk.Button] = {}
+        button_properties = [
+              ['Status', self.status_button_callback]
+            , ['Start', self.start_button_callback]
+            , ['Stop', self.stop_button_callback]
+            , ['Compile', self.compile_button_callback]
+            , ['Clear', self.clear_button_callback]]
+
+        i: int = 0
+        for button_property in button_properties:
+            b = tk.Button(parent, command=button_property[1], text=button_property[0])
+            b.grid(row=i, column=7, rowspan=1, padx=10, pady=10)
+            self.buttons[button_property[0]]=b
+            i+=1
+        self.update_periodically()
     
+
     def update_graph(self, i):
-
-
         reader = FileReader(file_path).read_file()
 
         self.ax.clear()
