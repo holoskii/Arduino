@@ -1,18 +1,17 @@
-import os
-import subprocess
-from collections import defaultdict
-from datetime import datetime
-import time
-from typing import List, Dict
-
-import numpy as np
-import tkinter as tk
+import os, subprocess, numpy as np, tkinter as tk
+import time, matplotlib.animation as mpl_animation
 from tkinter import messagebox
-import matplotlib.animation as mpl_animation
+from typing import List, Dict
+from datetime import datetime
+from collections import defaultdict
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
+# ========== User parameters ==========
+
 file_path = '/home/maivas/Arduino/out.txt'
+
+# ========== Main application class ==========
 
 class Application(tk.Tk):
     def __init__(self, *args, **kwargs):
@@ -90,6 +89,7 @@ class Application(tk.Tk):
         self.temperature_median_label = tk.Label(parent, text='')
         self.temperature_median_label.grid(row=4, column=6)
 
+    # ========== Callbacks ==========
 
     def status_button_callback(self):
         None
@@ -193,8 +193,7 @@ class Application(tk.Tk):
                 self.temperature_median_label.config(text='None')
 
 
-
-
+# ========== Class that parses file ==========
 
 class FileReader:
     start_prefix: str = "START: "
