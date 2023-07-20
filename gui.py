@@ -7,6 +7,7 @@ import matplotlib.animation as animation
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import os
+from collections import defaultdict
 import subprocess
 from functools import partial
 
@@ -15,37 +16,49 @@ file_path = '/home/maivas/Arduino/out.txt'
 class Application(tk.Tk):
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
+
+        self.process_holder = [None]
+        self.control_buttons:Dict[str, tk.Button] = {}
+        self.parameters_entries:Dict[str, dict[str,tk.Entry]] = defaultdict(dict)
+
         self.geometry("1600x900")
         self.title("Hohol production")
 
-        self.fig = Figure(figsize=(5, 4), dpi=100)
-        self.ax = self.fig.add_subplot(111)
+        fig = Figure(figsize=(5, 4), dpi=100)
+        self.ax = fig.add_subplot(111)
         self.update_graph(None)
 
-        self.canvas = FigureCanvasTkAgg(self.fig, master=self)
-        self.canvas.draw()
-        self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+        canvas = FigureCanvasTkAgg(fig, master=self)
+        canvas.draw()
+        canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
         
-        self.ani = animation.FuncAnimation(self.fig, self.update_graph, interval=500)
+        ani = animation.FuncAnimation(fig, self.update_graph, interval=500)
 
         bottom_frame = tk.Frame(self, height=100)
         bottom_frame.pack(side=tk.BOTTOM, pady=10)
 
-        self.process_holder = [None]
         self.setup_gui(bottom_frame)
         self.setup_buttons(bottom_frame)
 
     def setup_gui(self, parent):
         labels = ['Temperature', 'TempOffset', 'KP', 'KD']
+        substate_default = ['460', '15', '0.02', '0.40']
         tk.Label(parent, text='Substrate').grid(row=0, column=1,padx=10,pady=10)
         for i in range(4):
             tk.Label(parent, text=labels[i]).grid(row=i+1, column=0)
-            tk.Entry(parent).grid(row=i+1, column=1)
+            e = tk.Entry(parent)
+            e.insert(0,substate_default[i])
+            e.grid(row=i+1, column=1)
+            self.parameters_entries['Substrate'][labels[i]] = e
 
+        source_default = ['460', '15', '0.02', '0.40']
         tk.Label(parent, text='Source').grid(row=0, column=4, padx=10, pady=10)
         for i in range(4):
             tk.Label(parent, text=labels[i]).grid(row=i+1, column=3, padx=10, pady=10)
-            tk.Entry(parent).grid(row=i+1, column=4, padx=10, pady=10)
+            e = tk.Entry(parent)
+            e.insert(0,source_default[i])
+            e.grid(row=i+1, column=4, padx=10, pady=10)
+            self.parameters_entries['Source'][labels[i]] = e
 
         # Create entries in 3rd column
         labels_3rd = ['Name', 'Timer', 'Median', 'Sublimation Time']
@@ -71,9 +84,9 @@ class Application(tk.Tk):
     def update_periodically(self):
         # print('update_periodically')
         if self.process_holder[0] is not None and self.process_holder[0].poll() is None:
-            self.buttons['Status'].configure(bg="green")
+            self.control_buttons['Status'].configure(bg="green")
         else:
-            self.buttons['Status'].configure(bg="red")
+            self.control_buttons['Status'].configure(bg="red")
         self.after(50, self.update_periodically)  
 
     def compile_button_callback(self):
@@ -89,7 +102,6 @@ class Application(tk.Tk):
             file.truncate(0)
 
     def setup_buttons(self, parent):
-        self.buttons:Dict[str, tk.Button] = {}
         button_properties = [
               ['Status', self.status_button_callback]
             , ['Start', self.start_button_callback]
@@ -101,11 +113,10 @@ class Application(tk.Tk):
         for button_property in button_properties:
             b = tk.Button(parent, command=button_property[1], text=button_property[0])
             b.grid(row=i, column=7, rowspan=1, padx=10, pady=10)
-            self.buttons[button_property[0]]=b
+            self.control_buttons[button_property[0]]=b
             i+=1
         self.update_periodically()
     
-
     def update_graph(self, i):
         reader = FileReader(file_path).read_file()
 
