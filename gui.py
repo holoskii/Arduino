@@ -8,7 +8,7 @@ from typing import List, Dict
 import numpy as np
 import tkinter as tk
 from tkinter import messagebox
-import matplotlib.animation as animation
+import matplotlib.animation as mpl_animation
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
@@ -16,71 +16,84 @@ file_path = '/home/maivas/Arduino/out.txt'
 
 class Application(tk.Tk):
     def __init__(self, *args, **kwargs):
-        tk.Tk.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
+        # Initialize attributes
         self.process_holder = [None]
-        self.control_buttons:Dict[str, tk.Button] = {}
-        self.parameters_entries:Dict[str, dict[str,tk.Entry]] = defaultdict(dict)
-        self.temperature_interval_label:tk.Label = None
-        self.temperature_median_label:tk.Label = None
+        self.control_buttons: Dict[str, tk.Button] = {}
+        self.parameters_entries: Dict[str, Dict[str, tk.Entry]] = defaultdict(dict)
+        self.temperature_interval_label: tk.Label = None
+        self.temperature_median_label: tk.Label = None
 
+        # Configure the window
         self.geometry("1600x900")
         self.title("Hohol production")
 
+        # Set up the graph
         self.fig = Figure(figsize=(5, 4), dpi=100)
         self.ax = self.fig.add_subplot(111)
         self.update_graph(None)
 
+        # Set up the canvas
         self.canvas = FigureCanvasTkAgg(self.fig, master=self)
         self.canvas.draw()
         self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
-        
-        self.ani = animation.FuncAnimation(self.fig, self.update_graph, interval=500)
 
+        # Set up animation
+        self.ani = mpl_animation.FuncAnimation(self.fig, self.update_graph, interval=500)
+
+        # Set up the bottom frame
         bottom_frame = tk.Frame(self, height=100)
         bottom_frame.pack(side=tk.BOTTOM, pady=10)
 
+        # Set up GUI components
         self.setup_gui(bottom_frame)
         self.setup_buttons(bottom_frame)
 
+
     def setup_gui(self, parent):
+        # Labels and default values for the substrate and source entries
         labels = ['Temperature', 'TempOffset', 'KP', 'KD']
         substate_default = ['460', '15', '0.02', '0.40']
-        tk.Label(parent, text='Substrate').grid(row=0, column=1,padx=10,pady=10)
+        source_default = ['460', '15', '0.02', '0.40']
+
+        # Substrate entries
+        tk.Label(parent, text='Substrate').grid(row=0, column=1, padx=10, pady=10)
         for i in range(4):
             e = tk.Entry(parent)
-            e.insert(0,substate_default[i])
+            e.insert(0, substate_default[i])
             e.grid(row=i+1, column=1)
             self.parameters_entries['Substrate'][labels[i]] = e
 
-        source_default = ['460', '15', '0.02', '0.40']
+        # Source entries
         tk.Label(parent, text='Source').grid(row=0, column=4, padx=10, pady=10)
         for i in range(4):
             tk.Label(parent, text=labels[i]).grid(row=i+1, column=3, padx=10, pady=10)
             e = tk.Entry(parent)
-            e.insert(0,source_default[i])
+            e.insert(0, source_default[i])
             e.grid(row=i+1, column=4, padx=10, pady=10)
             self.parameters_entries['Source'][labels[i]] = e
 
-        # Create entries in 3rd column
+        # Additional entries in the 3rd column
         labels_3rd = ['Name', 'Timer']
         for i in range(2):
             tk.Label(parent, text=labels_3rd[i]).grid(row=i+1, column=5, padx=10, pady=10)
             tk.Entry(parent).grid(row=i+1, column=6)
 
+        # Temperature of sublimation label
         tk.Label(parent, text='Time of sublimation').grid(row=3, column=5, padx=10, pady=10)
         self.temperature_interval_label = tk.Label(parent, text='None')
         self.temperature_interval_label.grid(row=3, column=6)
 
+        # Median temperature label
         tk.Label(parent, text='Median temperature').grid(row=4, column=5, padx=10, pady=10)
         self.temperature_median_label = tk.Label(parent, text='')
         self.temperature_median_label.grid(row=4, column=6)
 
 
-
     def status_button_callback(self):
         None
-    
+
     def start_button_callback(self):
         print("Starting background process")
         command = "sleep 120"
@@ -90,15 +103,14 @@ class Application(tk.Tk):
         print("Stopping background process")
         if self.process_holder[0] is not None:
             self.process_holder[0].terminate()
-        self.process_holder[0] = None      
+        self.process_holder[0] = None
 
     def update_periodically(self):
-        # print('update_periodically')
         if self.process_holder[0] is not None and self.process_holder[0].poll() is None:
             self.control_buttons['Status'].configure(bg="green")
         else:
             self.control_buttons['Status'].configure(bg="red")
-        self.after(50, self.update_periodically)  
+        self.after(50, self.update_periodically)
 
     def compile_button_callback(self):
         self.stop_button_callback()
@@ -115,56 +127,58 @@ class Application(tk.Tk):
 
     def setup_buttons(self, parent):
         button_properties = [
-              ['Status', self.status_button_callback]
-            , ['Start', self.start_button_callback]
-            , ['Stop', self.stop_button_callback]
-            , ['Compile', self.compile_button_callback]
-            , ['Clear', self.clear_button_callback]]
+            ['Status', self.status_button_callback],
+            ['Start', self.start_button_callback],
+            ['Stop', self.stop_button_callback],
+            ['Compile', self.compile_button_callback],
+            ['Clear', self.clear_button_callback]]
 
         i: int = 0
         for button_property in button_properties:
             b = tk.Button(parent, command=button_property[1], text=button_property[0])
             b.grid(row=i, column=7, rowspan=1, padx=10, pady=10)
-            self.control_buttons[button_property[0]]=b
-            i+=1
+            self.control_buttons[button_property[0]] = b
+            i += 1
+        
         self.update_periodically()
-    
+
     def update_graph(self, i):
-        reader = FileReader(file_path).read_file()
-
-        self.ax.clear()
-        self.ax.grid()
-        self.ax.set_title(reader.title, fontsize = 20, y=1.04)
-        self.ax.set_xlabel('Time, min', fontsize=20)
-        self.ax.set_ylabel('Temperature, C', fontsize=20)
-        if reader.max_time_value < 5:
-            self.ax.set_xlim(0, 5)
-        self.ax.scatter(reader.time_values, reader.control1_values, s=3, color = 'b')
-        self.ax.scatter(reader.time_values, reader.control2_values, s=3, color = 'r')
-        self.ax.scatter(reader.time_values, reader.temp1_values, label='Substrate', s=3, color = 'b')
-        self.ax.scatter(reader.time_values, reader.temp2_values, label='Source',    s=3, color = 'r')
-        self.ax.legend()
-
         def find_temperature_interval(temp_values, X):
             left_boundary_index = None
             right_boundary_index = None
-
             for i, value in enumerate(temp_values):
                 if left_boundary_index is None and value > X:
                     left_boundary_index = i
                 elif left_boundary_index is not None and value >= X:
                     right_boundary_index = i
-
             return [left_boundary_index, right_boundary_index] if left_boundary_index is not None and right_boundary_index is not None else None
-    
+
+        reader = FileReader(file_path).read_file()
+
+        self.ax.clear()
+        self.ax.grid()
+        self.ax.set_title(reader.title, fontsize=20, y=1.04)
+        self.ax.set_xlabel('Time, min', fontsize=20)
+        self.ax.set_ylabel('Temperature, C', fontsize=20)
+
+        if reader.max_time_value < 5:
+            self.ax.set_xlim(0, 5)
+
+        self.ax.scatter(reader.time_values, reader.control1_values, s=3, color='b')
+        self.ax.scatter(reader.time_values, reader.control2_values, s=3, color='r')
+        self.ax.scatter(reader.time_values, reader.temp1_values, label='Substrate', s=3, color='b')
+        self.ax.scatter(reader.time_values, reader.temp2_values, label='Source', s=3, color='r')
+        self.ax.legend()
+
         temperature_interval = find_temperature_interval(reader.temp2_values, 430)
         if temperature_interval is not None:
             self.ax.axvline(x=reader.time_values[temperature_interval[0]], color='g', linestyle='--', label='Interval Start')
             self.ax.axvline(x=reader.time_values[temperature_interval[1]], color='m', linestyle='--', label='Interval Finish')
             self.ax.legend()
+
             if self.temperature_interval_label is not None:
-                interval_sec: int = temperature_interval[1] - temperature_interval[0]
-                text:str = f'{interval_sec // 60}m {interval_sec % 60}s'
+                interval_sec = temperature_interval[1] - temperature_interval[0]
+                text = f'{interval_sec // 60}m {interval_sec % 60}s'
                 self.temperature_interval_label.config(text=text)
 
             if self.temperature_median_label is not None:
@@ -177,6 +191,7 @@ class Application(tk.Tk):
                 self.temperature_interval_label.config(text='None')
             if self.temperature_median_label is not None:
                 self.temperature_median_label.config(text='None')
+
 
 
 
