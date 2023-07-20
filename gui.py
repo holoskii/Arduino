@@ -10,6 +10,7 @@ import os
 from collections import defaultdict
 import subprocess
 from functools import partial
+import numpy as np
 
 file_path = '/home/maivas/Arduino/out.txt'
 
@@ -20,19 +21,21 @@ class Application(tk.Tk):
         self.process_holder = [None]
         self.control_buttons:Dict[str, tk.Button] = {}
         self.parameters_entries:Dict[str, dict[str,tk.Entry]] = defaultdict(dict)
+        self.temperature_interval_label:tk.Label = None
+        self.temperature_median_label:tk.Label = None
 
         self.geometry("1600x900")
         self.title("Hohol production")
 
-        fig = Figure(figsize=(5, 4), dpi=100)
-        self.ax = fig.add_subplot(111)
+        self.fig = Figure(figsize=(5, 4), dpi=100)
+        self.ax = self.fig.add_subplot(111)
         self.update_graph(None)
 
-        canvas = FigureCanvasTkAgg(fig, master=self)
-        canvas.draw()
-        canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+        self.canvas = FigureCanvasTkAgg(self.fig, master=self)
+        self.canvas.draw()
+        self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
         
-        ani = animation.FuncAnimation(fig, self.update_graph, interval=500)
+        self.ani = animation.FuncAnimation(self.fig, self.update_graph, interval=500)
 
         bottom_frame = tk.Frame(self, height=100)
         bottom_frame.pack(side=tk.BOTTOM, pady=10)
@@ -45,7 +48,6 @@ class Application(tk.Tk):
         substate_default = ['460', '15', '0.02', '0.40']
         tk.Label(parent, text='Substrate').grid(row=0, column=1,padx=10,pady=10)
         for i in range(4):
-            tk.Label(parent, text=labels[i]).grid(row=i+1, column=0)
             e = tk.Entry(parent)
             e.insert(0,substate_default[i])
             e.grid(row=i+1, column=1)
@@ -61,10 +63,19 @@ class Application(tk.Tk):
             self.parameters_entries['Source'][labels[i]] = e
 
         # Create entries in 3rd column
-        labels_3rd = ['Name', 'Timer', 'Median', 'Sublimation Time']
-        for i in range(4):
+        labels_3rd = ['Name', 'Timer']
+        for i in range(2):
             tk.Label(parent, text=labels_3rd[i]).grid(row=i+1, column=5, padx=10, pady=10)
             tk.Entry(parent).grid(row=i+1, column=6)
+
+        tk.Label(parent, text='Time of sublimation').grid(row=3, column=5, padx=10, pady=10)
+        self.temperature_interval_label = tk.Label(parent, text='None')
+        self.temperature_interval_label.grid(row=3, column=6)
+
+        tk.Label(parent, text='Median temperature').grid(row=4, column=5, padx=10, pady=10)
+        self.temperature_median_label = tk.Label(parent, text='')
+        self.temperature_median_label.grid(row=4, column=6)
+
 
 
     def status_button_callback(self):
@@ -132,6 +143,41 @@ class Application(tk.Tk):
         self.ax.scatter(reader.time_values, reader.temp1_values, label='Substrate', s=3, color = 'b')
         self.ax.scatter(reader.time_values, reader.temp2_values, label='Source',    s=3, color = 'r')
         self.ax.legend()
+
+        def find_temperature_interval(temp_values, X):
+            left_boundary_index = None
+            right_boundary_index = None
+
+            for i, value in enumerate(temp_values):
+                if left_boundary_index is None and value > X:
+                    left_boundary_index = i
+                elif left_boundary_index is not None and value >= X:
+                    right_boundary_index = i
+
+            return [left_boundary_index, right_boundary_index] if left_boundary_index is not None and right_boundary_index is not None else None
+    
+        temperature_interval = find_temperature_interval(reader.temp2_values, 430)
+        if temperature_interval is not None:
+            self.ax.axvline(x=reader.time_values[temperature_interval[0]], color='g', linestyle='--', label='Interval Start')
+            self.ax.axvline(x=reader.time_values[temperature_interval[1]], color='m', linestyle='--', label='Interval Finish')
+            self.ax.legend()
+            if self.temperature_interval_label is not None:
+                interval_sec: int = temperature_interval[1] - temperature_interval[0]
+                text:str = f'{interval_sec // 60}m {interval_sec % 60}s'
+                self.temperature_interval_label.config(text=text)
+
+            if self.temperature_median_label is not None:
+                interval_values = reader.temp2_values[temperature_interval[0]:temperature_interval[1]]
+                median_value = np.median(interval_values)
+                text = f'{median_value:.2f}°C'
+                self.temperature_median_label.config(text=text)
+        else:
+            if self.temperature_interval_label is not None:
+                self.temperature_interval_label.config(text='None')
+            if self.temperature_median_label is not None:
+                self.temperature_median_label.config(text='None')
+
+
 
 
 class FileReader:
