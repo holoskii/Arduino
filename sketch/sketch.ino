@@ -16,6 +16,8 @@ static constexpr int        SOURCE_TEMP = 430;
 static constexpr double     SOURCE_KP   = 0.02;
 static constexpr double     SOURCE_KD   = 0.40;
 
+static constexpr long       DEPOSITION_TIME_MS = 60 * 60 * 1000;
+
 // ############################################## USER SET VARIABLES
 
 inline int ip(double d) { return (int)d; }
@@ -64,7 +66,7 @@ public:
      * @brief Poll logic state and calculate control value
      * @return True if logic was recalculated, otherwise false
      */
-    bool pollLogic() {
+    bool pollLogic(bool depositionEnded) {
         // Read temperature multiple times and find average to reduce noise
         const double temp = thermocouple.readCelsius(); 
         readings[readingIndex] = temp;
@@ -74,7 +76,7 @@ public:
             return false;
 
         const double averageTemp = calculateAverageTemp();
-        controlValue = calculateControlValue(averageTemp);
+        controlValue = calculateControlValue(averageTemp, depositionEnded);
         return true;
     }
 
@@ -106,7 +108,7 @@ private:
      * @brief Calculate the average temperature from the stored readings
      * @return The average temperature
      */
-    int calculateControlValue(double inTemperature) {
+    int calculateControlValue(double inTemperature, bool depositionEnded) {
         // Save all these intermediate values to trace them
         temperature = inTemperature;
         error = targetTemp + tempOffet - temperature;
@@ -116,6 +118,9 @@ private:
         p = kp * error;
         d = kd * deriv;
         uncappedCV = p + d;
+
+        if(depositionEnded)
+            uncappedCV = 0;
 
         cv = min(powerLimit, max(0.0, uncappedCV));
 
@@ -198,12 +203,25 @@ public:
         if(currentTime >= nextReadTime) {
             nextReadTime += TEMP_READ_INTERVAL;
             
-            substrateController.pollLogic();
-            bool calcLogic = sourceController.pollLogic();
+            substrateController.pollLogic(depositionEnded);
+            bool calcLogic = sourceController.pollLogic(depositionEnded);
 
             // Send data only if logic was recalculated
             if(calcLogic) {
                 relayCycleStart = currentTime;
+
+                if (!depositionStarted) {
+                    if (sourceController.temperature >= SOURCE_TEMP * 0.99 && abs(sourceController.deriv) < 50) {
+                        depositionStarted = true;
+                        depositionStartTime = currentTime;
+                    }
+                }
+                else {
+                    if (currentTime - depositionStartTime > DEPOSITION_TIME_MS) {
+                        depositionEnded = true;
+                    }
+                }
+
                 sendData();
             }
         }
@@ -241,6 +259,19 @@ public:
             , ip(sourceController.error), int(sourceController.p * 100), int(sourceController.d * 100)
             , int(sourceController.uncappedCV * 100), int(sourceController.cv * 100), ip(sourceController.temperature));
 
+        if(depositionStarted) {
+            if(depositionEnded) {
+                pos += snprintf(serialBuf + pos, serialBufLen - pos, "TIMER ENDED");
+            }
+            pos += snprintf(serialBuf + pos, serialBufLen - pos
+                        , "TIMER ACTIVE: started_at=%lu, time left=%lu"
+                        , depositionStartTime, (currentTime - depositionStartTime) / 1000);
+        }
+        else {
+            pos += snprintf(serialBuf + pos, serialBufLen - pos, "TIMER OFF");
+        }
+
+
         // Try to send all the info in one buffer to avoid flickering in receiving terminal
         assert(pos < serialBufLen);
         Serial.write(serialBuf, pos);
@@ -258,6 +289,11 @@ private:
     unsigned long relayPollTime = 0;
     unsigned long nextReadTime = 0;
     unsigned long relayCycleStart = 0;
+
+    // Timer variables
+    bool depositionStarted = false;
+    bool depositionEnded = false;
+    unsigned long depositionStartTime = 0;
 };
 
 Reactor r{};
