@@ -1,24 +1,8 @@
 #include <MAX6675_Thermocouple.h>
 #include <assert.h>
 
-// ############################################## USER SET VARIABLES
-//                          SUBSTRATE
-static constexpr double     SUBSTRATE_POWER_LIMIT = 1.0;
-static constexpr int        SUBSTRATE_TEMP_OFFSET = 5; // increases target temp for PID calculations
-static constexpr int        SUBSTRATE_TEMP = 400;
-static constexpr double     SUBSTRATE_KP   = 0.02;
-static constexpr double     SUBSTRATE_KD   = 0.60;
-
-//                          SOURCE
-static constexpr double     SOURCE_POWER_LIMIT = 1.0;
-static constexpr int        SOURCE_TEMP_OFFSET = 15;
-static constexpr int        SOURCE_TEMP = 430;
-static constexpr double     SOURCE_KP   = 0.02;
-static constexpr double     SOURCE_KD   = 0.40;
-
-static constexpr long       DEPOSITION_TIME_MS = 60 * 60 * 1000;
-
-// ############################################## USER SET VARIABLES
+// ##### USER SET VARIABLES
+#include "parameters.h"
 
 inline int ip(double d) { return (int)d; }
 inline int fp(double d) { return (int)((d - (int)d) * 100); }
@@ -37,10 +21,10 @@ class Controller {
 public:
     Controller(
         int tcGNDpin, int tc5Vpin, int tcSCK, int tcCS, int tcSO
-        , int relayControlPin, int relayGroundPin, double powerLimit
+        , int relayControlPin, int relayGroundPin
         , int targetTemp, double tempOffet, double kp, double kd)
     : tcGNDpin(tcGNDpin), tc5Vpin(tc5Vpin), thermocouple(tcSCK, tcCS, tcSO)
-    , relayControlPin(relayControlPin), relayGroundPin(relayGroundPin), powerLimit(powerLimit)
+    , relayControlPin(relayControlPin), relayGroundPin(relayGroundPin)
     , targetTemp(targetTemp), tempOffet(tempOffet), kp(kp), kd(kd) {}
 
     // #################### FUNCTIONS ####################
@@ -122,8 +106,6 @@ private:
         if(depositionEnded)
             uncappedCV = 0;
 
-        cv = min(powerLimit, max(0.0, uncappedCV));
-
         // Switch time is 10 ms, so avoid any time intervals < 10ms
         if (cv < 0.01) cv = 0.0;
         if (cv > 0.99) cv = 1.0;
@@ -146,7 +128,6 @@ private:
     // Logic
     int controlValue = 0; // [0..1000], represents how ms in seconds relay will be ON
     double previousError = 0;
-    const double powerLimit;
     const int targetTemp;
     const double tempOffet;
     const double kp, kd;
@@ -280,8 +261,8 @@ public:
 
     // #################### VARIABLES ####################
 private:
-    Controller substrateController {2, 3,  4,  5,  6, 22, 23, SUBSTRATE_POWER_LIMIT, SUBSTRATE_TEMP, SUBSTRATE_TEMP_OFFSET, SUBSTRATE_KP, SUBSTRATE_KD}; // Substrate
-    Controller sourceController    {8, 9, 10, 11, 12, 24, 25, SOURCE_POWER_LIMIT,    SOURCE_TEMP,    SOURCE_TEMP_OFFSET,    SOURCE_KP,    SOURCE_KD   }; // Source
+    Controller substrateController {2, 3,  4,  5,  6, 22, 23, SUBSTRATE_TEMP, SUBSTRATE_TEMP_OFFSET, SUBSTRATE_KP, SUBSTRATE_KD}; // Substrate
+    Controller sourceController    {8, 9, 10, 11, 12, 24, 25, SOURCE_TEMP,    SOURCE_TEMP_OFFSET,    SOURCE_KP,    SOURCE_KD   }; // Source
 
     static const size_t serialBufLen = 2048;
     char serialBuf[serialBufLen];
