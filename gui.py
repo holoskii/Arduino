@@ -1,16 +1,16 @@
+import os
+import subprocess
+from collections import defaultdict
 from datetime import datetime
 import time
-from typing import List,Dict
+from typing import List, Dict
+
+import numpy as np
 import tkinter as tk
 from tkinter import messagebox
 import matplotlib.animation as animation
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-import os
-from collections import defaultdict
-import subprocess
-from functools import partial
-import numpy as np
 
 file_path = '/home/maivas/Arduino/out.txt'
 
@@ -82,12 +82,12 @@ class Application(tk.Tk):
         None
     
     def start_button_callback(self):
-        print("Start button")
+        print("Starting background process")
         command = "sleep 120"
         self.process_holder[0] = subprocess.Popen(command, shell=True)
 
     def stop_button_callback(self):
-        print("Stopping the process")
+        print("Stopping background process")
         if self.process_holder[0] is not None:
             self.process_holder[0].terminate()
         self.process_holder[0] = None      
@@ -108,6 +108,7 @@ class Application(tk.Tk):
             messagebox.showerror(title=None, message='pizes')
 
     def clear_button_callback(self):
+        print("Clearing file")
         self.stop_button_callback()
         with open(file_path, 'w') as file:
             file.truncate(0)
