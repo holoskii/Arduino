@@ -266,7 +266,13 @@ class Application(tk.Tk):
         self.ax.scatter(reader.time_values, reader.temp2_values, label='Source', s=3, color='r')
         self.ax.legend()
 
-        temperature_interval = find_temperature_interval(reader.temp2_values, 430)
+        temperature_interval = None
+        try:
+            temperature_interval = find_temperature_interval(reader.temp2_values, 
+                float(self.parameters_entries['Source']['Temperature'].get()))
+        except:
+            print('Failed to compute interval')
+        
         if temperature_interval is not None:
             self.ax.axvline(x=reader.time_values[temperature_interval[0]], color='g', linestyle='--', label='Interval Start')
             self.ax.axvline(x=reader.time_values[temperature_interval[1]], color='m', linestyle='--', label='Interval Finish')
