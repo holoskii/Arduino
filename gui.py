@@ -1,4 +1,4 @@
-import os, subprocess, numpy as np, tkinter as tk
+import os, signal, subprocess, numpy as np, tkinter as tk
 import time, matplotlib.animation as mpl_animation
 from tkinter import messagebox
 from typing import List, Dict
@@ -151,26 +151,35 @@ class Application(tk.Tk):
                 raise ValueError("Failed to execute \"{}\", return code = {}".format(command, return_value))
             
             # 2. Start background process reading the device
-            command = "cat -v /dev/ttyACM0 | tee -a ~/Arduino/out.txt"
-            if self.process_holder[0] is None:
-                self.process_holder[0] = subprocess.Popen(command, shell=True)
+            #command = "cat -v /dev/ttyACM0 | tee -a ~/Arduino/out.txt"
+            command = ["bash", "-c", "cat -v /dev/ttyACM0 | tee -a ~/Arduino/out.txt &"]
+            subprocess.Popen(command)
 
             # 3. Check if the process is running
-            while self.process_holder[0].poll() is not None:
-                raise ValueError("Process is not running, poll = {}".format(self.process_holder[0].poll()))
+            if not self.is_process_running():
+                raise ValueError("Process is not running")
             
         except Exception as e:
                 messagebox.showerror(title=None, message="Gabella, \"{}\"".format(e))
 
-
     def stop_button_callback(self):
         print("Stopping background process")
-        if self.process_holder[0] is not None:
-            self.process_holder[0].terminate()
-        self.process_holder[0] = None
+        try:
+            output = subprocess.check_output(f"pkill -f \"[cat] -v /dev/ttyACM0\"", shell=True)
+        except:
+            print('Failed to kill process')
+
+    def is_process_running(self):
+        try:
+            output = subprocess.check_output(f"pgrep -f \"[cat] -v /dev/ttyACM0\"", shell=True)
+            if output.strip():
+                return True
+        except Exception as e:
+            return False
+        return False
 
     def update_periodically(self):
-        if self.process_holder[0] is not None and self.process_holder[0].poll() is None:
+        if self.is_process_running():
             self.control_buttons['Status'].configure(bg="green")
         else:
             self.control_buttons['Status'].configure(bg="red")
@@ -228,6 +237,8 @@ class Application(tk.Tk):
         self.update_periodically()
 
     def update_graph(self, i):
+        # print('Update graph')
+
         def find_temperature_interval(temp_values, X):
             left_boundary_index = None
             right_boundary_index = None
@@ -277,6 +288,7 @@ class Application(tk.Tk):
             if self.temperature_median_label is not None:
                 self.temperature_median_label.config(text='None')
 
+        self.fig.canvas.draw()
 
 # ========== Class that parses file ==========
 
@@ -333,7 +345,6 @@ class FileReader:
         d = date_time_now.strftime("%H:%M:%S, %d %b, %Y")
         self.title = f'{self.arduino_param_str}\n{temps_str}; {d}'
         return self
-
 
 app = Application()
 app.mainloop()

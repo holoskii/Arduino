@@ -102,9 +102,10 @@ private:
         p = kp * error;
         d = kd * deriv;
         uncappedCV = p + d;
+        cv = uncappedCV;
 
         if(depositionEnded)
-            uncappedCV = 0;
+            cv = 0;
 
         // Switch time is 10 ms, so avoid any time intervals < 10ms
         if (cv < 0.01) cv = 0.0;
@@ -236,7 +237,7 @@ public:
                 
         pos += snprintf(serialBuf + pos, serialBufLen - pos
             , "TRACE2(SOURCE): ERR=%3d P=%3d D=%3d "
-                "uCV=%3d CV=%3d T=%3d\n\n"
+                "uCV=%3d CV=%3d T=%3d\n"
             , ip(sourceController.error), int(sourceController.p * 100), int(sourceController.d * 100)
             , int(sourceController.uncappedCV * 100), int(sourceController.cv * 100), ip(sourceController.temperature));
 
@@ -251,6 +252,7 @@ public:
         else {
             pos += snprintf(serialBuf + pos, serialBufLen - pos, "TIMER OFF");
         }
+        pos += snprintf(serialBuf + pos, serialBufLen - pos, "\n\n");
 
 
         // Try to send all the info in one buffer to avoid flickering in receiving terminal
