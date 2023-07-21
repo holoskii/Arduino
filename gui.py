@@ -141,9 +141,27 @@ class Application(tk.Tk):
         None
 
     def start_button_callback(self):
-        print("Starting background process")
-        command = "sleep 120"
-        self.process_holder[0] = subprocess.Popen(command, shell=True)
+        try:
+            print("Starting background process")
+            
+            # 1. Add nessesary rights
+            command = "sudo chmod a+rw /dev/ttyACM0"
+            return_value: int = os.system(command)
+            if return_value != 0:
+                raise ValueError("Failed to execute \"{}\", return code = {}".format(command, return_value))
+            
+            # 2. Start background process reading the device
+            command = "cat -v /dev/ttyACM0 | tee -a ~/Arduino/out.txt"
+            if self.process_holder[0] is None:
+                self.process_holder[0] = subprocess.Popen(command, shell=True)
+
+            # 3. Check if the process is running
+            while self.process_holder[0].poll() is not None:
+                raise ValueError("Process is not running, poll = {}".format(self.process_holder[0].poll()))
+            
+        except Exception as e:
+                messagebox.showerror(title=None, message="Gabella, \"{}\"".format(e))
+
 
     def stop_button_callback(self):
         print("Stopping background process")
@@ -161,11 +179,28 @@ class Application(tk.Tk):
     def compile_button_callback(self):
         try:
             self.stop_button_callback()
+
+            # 1. Update header file with new parameters
             self.write_to_header()
+
+            # 2. Compile the code
             print("Arduino compiling")
             return_value: int = os.system("~/Arduino/env/arduino-cli compile --fqbn arduino:avr:mega ~/Arduino/sketch --clean")
             if return_value != 0:
-                raise ValueError("Compile process return code is not zero: {}".format(return_value))
+                raise ValueError("Failed to compile code, return code = {}".format(return_value))
+            
+            # 3. Add nessesary rights
+            command = "sudo chmod a+rw /dev/ttyACM0"
+            return_value: int = os.system(command)
+            if return_value != 0:
+                raise ValueError("Failed to execute \"{}\", return code = {}".format(command, return_value))
+
+            # 4. Flush the Arduino
+            print("Arduino flushing")
+            return_value: int = os.system("~/Arduino/env/arduino-cli upload ~/Arduino/sketch --fqbn arduino:avr:mega --port /dev/ttyACM0 --verbose")
+            if return_value != 0:
+                raise ValueError("Failed to flush Arduino, return code = {}".format(return_value))
+
         except Exception as e:
                 messagebox.showerror(title=None, message="Gabella, \"{}\"".format(e))
 
