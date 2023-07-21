@@ -19,8 +19,8 @@ class Application(tk.Tk):
         self.source_default   = ['460', '15', '0.02', '0.40']
 
         # Global variables
-        self.output_file_path = 'Arduino/out.txt'
-        self.header_file_path = 'Arduino/sketch/parameters.h'
+        self.output_file_path = 'out.txt'
+        self.header_file_path = 'sketch/parameters.h'
 
         # Initialize attributes
         self.process_holder = [None]
