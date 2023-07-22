@@ -69,11 +69,11 @@ class FileManager:
             file.truncate(0)
 
     @staticmethod
-    def write_to_header(header_file_path, parameters_entries, labels):
+    def write_to_header(header_file_path, parameters_entries):
         # Get values from the Entry fields
-        substrate_values = [parameters_entries['Substrate'][label].get() for label in labels]
-        source_values = [parameters_entries['Source'][label].get() for label in labels]
-
+        substrate_values = [entry.get() for entry in parameters_entries['Substrate'].values()]
+        source_values = [entry.get() for entry in parameters_entries['Source'].values()]
+        
         # Verify the values are valid floats
         for value in substrate_values + source_values + [parameters_entries['Additional']['Timer'].get()] + [parameters_entries['Additional']['Interval temp'].get()]:
             try:
@@ -121,6 +121,7 @@ class FileManager:
         except Exception as e:
             if show_error:
                 messagebox.showerror(title=None, message="This safe file doesn't exist yet")
+            return
         # Update the text content of each Entry widget
         for k1, v1 in loaded_data.items():
             for k2, v2 in v1.items():

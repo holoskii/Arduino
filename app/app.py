@@ -22,31 +22,24 @@ class Application(tk.Tk):
         self.header_file_path = 'sketch/parameters.h'
 
         # Initialize attributes
-        self.process_holder = [None]
         self.control_buttons: Dict[str, tk.Button] = {}
         self.parameters_entries: Dict[str, Dict[str, tk.Entry]] = {'Substrate': {}, 'Source': {}, 'Additional': {}}
-        self.temperature_interval_label: tk.Label = None
-        self.source_temperature_median_label: tk.Label = None
-        self.substrate_temperature_median_label: tk.Label = None
+        self.info_labels = {}
 
         # Configure the window
         self.geometry("1600x900")
         self.title("Hohol production")
 
-        # Set up the graph
         self.fig = Figure(figsize=(5, 4), dpi=100)
         self.ax = self.fig.add_subplot(111)
         self.update_graph(None)
 
-        # Set up the canvas
         self.canvas = FigureCanvasTkAgg(self.fig, master=self)
         self.canvas.draw()
         self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
-        # Set up animation
         self.ani = mpl_animation.FuncAnimation(self.fig, self.update_graph, interval=500)
 
-        # Set up the bottom frame
         bottom_frame = tk.Frame(self, height=100)
         bottom_frame.pack(side=tk.BOTTOM, pady=10)
 
@@ -56,6 +49,7 @@ class Application(tk.Tk):
         for child in bottom_frame.winfo_children():
             child.grid_configure(padx=10, pady=10)
 
+    # ========== Buttons and callbacks ==========
     def setup_buttons_and_callbacks(self, parent):
         # Callbacks
         def execute_with_error_handling(func):
@@ -78,8 +72,7 @@ class Application(tk.Tk):
                 stop_button_callback()
                 ProcessManager.compile_flush_arduino(
                     self.header_file_path, 
-                    self.parameters_entries, 
-                    self.labels
+                    self.parameters_entries
                 )
             execute_with_error_handling(action)
 
@@ -113,10 +106,12 @@ class Application(tk.Tk):
         for i in range(5):
             filename = f"data/{i}.pkl"
             save_button = tk.Button(parent, text=f"Save {i+1}", command=lambda fn=filename: FileManager.save_data(self.parameters_entries, fn))
-            save_button.grid(row=i+1, column=10)
+            save_button.grid(row=i, column=10)
             load_button = tk.Button(parent, text=f"Load {i+1}", command=lambda fn=filename: FileManager.load_data(self.parameters_entries, fn))
-            load_button.grid(row=i+1, column=11)
+            load_button.grid(row=i, column=11)
 
+
+    # ========== Labels and entries ==========
     def setup_gui(self, parent):
         def create_entry(parent, default_value, row, column):
             e = tk.Entry(parent)
@@ -124,42 +119,33 @@ class Application(tk.Tk):
             e.grid(row=row, column=column)
             return e
 
-        # Source/Substrate entries
-        self.labels = ['Temperature', 'TempOffset', 'KP', 'KD']
-        self.substate_default = ['460', '15', '0.02', '0.40']
-        self.source_default   = ['460', '15', '0.02', '0.40']
-        tk.Label(parent, text='Substrate').grid(row=0, column=1)
-        tk.Label(parent, text='Source').grid(row=0, column=3)
-        for i in range(4):
-            tk.Label(parent, text=self.labels[i]).grid(row=i+1, column=2)
-            self.parameters_entries['Substrate'][self.labels[i]] = create_entry(parent, self.substate_default[i], i+1, 1)
-            self.parameters_entries['Source'][self.labels[i]] = create_entry(parent, self.source_default[i], i+1, 3)
-            
-        # Additional entries
-        additional_labels = ['Name', 'Timer', 'Interval temp', ]
-        additional_defaults = ['Mykhaylo', '30', self.source_default[0]]
-        for i, label in enumerate(additional_labels):
-            tk.Label(parent, text=label).grid(row=i+1, column=5)
-            self.parameters_entries['Additional'][label] = create_entry(parent, additional_defaults[i], i+1, 6)
+        # Parameter entries
+        common_labels = ['Temperature', 'TempOffset', 'KP', 'KD']
+        sections = [
+            {'name': 'Substrate',  'labels': common_labels,                      'defaults': ['460', '15', '0.02', '0.40'], 'column': 1},
+            {'name': 'Source',     'labels': common_labels,                      'defaults': ['460', '15', '0.02', '0.40'], 'column': 3},
+            {'name': 'Additional', 'labels': ['Name', 'Timer', 'Interval temp'], 'defaults': ['Mykhaylo', '30', '460'],     'column': 6},
+        ]
 
-        # Temperature of sublimation label
-        tk.Label(parent, text='Time of sublimation').grid(row=1, column=7)
-        self.temperature_interval_label = tk.Label(parent, text='None')
-        self.temperature_interval_label.grid(row=1, column=8)
+        for section in sections:
+            tk.Label(parent, text=section['name']).grid(row=0, column=section['column'])
+            for i, (label, default) in enumerate(zip(section['labels'], section['defaults'])):
+                if section['name'] != 'Substrate':
+                    tk.Label(parent, text=label).grid(row=i+1, column=section['column'] - 1)
+                self.parameters_entries[section['name']][label] = create_entry(parent, default, i+1, section['column'])
 
-        # Median temperature label
-        tk.Label(parent, text='Median temperature').grid(row=2, column=7)
-        self.source_temperature_median_label = tk.Label(parent, text='')
-        self.source_temperature_median_label.grid(row=2, column=8)
 
-        tk.Label(parent, text='Median temperature').grid(row=3, column=7)
-        self.substrate_temperature_median_label = tk.Label(parent, text='')
-        self.substrate_temperature_median_label.grid(row=3, column=8)
+        # Informational labels
+        labels_info = ['Time of sublimation', 'Median source temperature', 'Median substrate temperature']
 
-        try:
-            FileManager.load_data(self.parameters_entries, "data/current.pkl", False)
-        except:
-            pass
+        for row, label_info in enumerate(labels_info, start=1):
+            tk.Label(parent, text=label_info).grid(row=row, column=7)
+            self.info_labels[label_info] = tk.Label(parent, text='None')
+            self.info_labels[label_info].grid(row=row, column=8)
+
+        # Try to load data from the previous session
+        # FileManager.load_data(self.parameters_entries, "data/current.pkl", False)
+
 
     def update_graph(self, i):
         if len(self.parameters_entries['Substrate']) > 0:
@@ -206,31 +192,24 @@ class Application(tk.Tk):
             self.ax.axvline(x=reader.time_values[temperature_interval[1]], color='m', linestyle='--', label='Interval Finish')
             self.ax.legend()
 
-            if self.temperature_interval_label is not None:
+            try:
                 interval_sec = temperature_interval[1] - temperature_interval[0]
                 text = f'{interval_sec // 60}m {interval_sec % 60}s'
-                self.temperature_interval_label.config(text=text)
+                self.info_labels['Time of sublimation'].config(text=text)
 
-            if self.source_temperature_median_label is not None:
-                interval_values = reader.temp2_values[temperature_interval[0]:temperature_interval[1]]
-                median_value = np.median(interval_values)
-                deviation_value = np.std(interval_values)
-                text = f'{median_value:.2f}°C\\{deviation_value:.2f}°C'
-                self.source_temperature_median_label.config(text=text)
+                for info_label, data_source in {'Median substrate temperature': reader.temp1_values, 'Median source temperature': reader.temp2_values}.items():
+                    interval_values = data_source[temperature_interval[0]:temperature_interval[1]]
+                    median_value = np.median(interval_values)
+                    deviation_value = np.std(interval_values)
+                    text = f'{median_value:.2f}°C\\{deviation_value:.2f}°C'
+                    self.info_labels[info_label].config(text=text)
+            except Exception as e:
+                print('Caught exception ' + str(e))
 
-            if self.substrate_temperature_median_label is not None:
-                interval_values = reader.temp1_values[temperature_interval[0]:temperature_interval[1]]
-                median_value = np.median(interval_values)
-                deviation_value = np.std(interval_values)
-                text = f'{median_value:.2f}°C\\{deviation_value:.2f}°C'
-                self.substrate_temperature_median_label.config(text=text)
         else:
-            if self.temperature_interval_label is not None:
-                self.temperature_interval_label.config(text='None')
-            if self.source_temperature_median_label is not None:
-                self.source_temperature_median_label.config(text='None')
-            if self.substrate_temperature_median_label is not None:
-                self.substrate_temperature_median_label.config(text='None')
+            for label_name, label_widget in self.info_labels.items():
+                if label_widget is not None:
+                    label_widget.config(text='None')
 
         self.fig.canvas.draw()
 
