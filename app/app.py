@@ -17,10 +17,6 @@ class Application(tk.Tk):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # ========== User parameters ==========
-        self.substate_default = ['460', '15', '0.02', '0.40']
-        self.source_default   = ['460', '15', '0.02', '0.40']
-
         # Global variables
         self.output_file_path = 'out.txt'
         self.header_file_path = 'sketch/parameters.h'
@@ -55,119 +51,115 @@ class Application(tk.Tk):
         bottom_frame.pack(side=tk.BOTTOM, pady=10)
 
         # Set up GUI components
+        self.setup_buttons_and_callbacks(bottom_frame)    
         self.setup_gui(bottom_frame)    
+        for child in bottom_frame.winfo_children():
+            child.grid_configure(padx=10, pady=10)
 
-
-
-    def setup_gui(self, parent):
-        button_properties = [
-            ['Status', self.status_button_callback],
-            ['Start', self.start_button_callback],
-            ['Stop', self.stop_button_callback],
-            ['Compile', self.compile_button_callback],
-            ['Clear', self.clear_button_callback]]
-
-        i: int = 0
-        for button_property in button_properties:
-            b = tk.Button(parent, command=button_property[1], text=button_property[0])
-            b.grid(row=i, column=0, rowspan=1, padx=10, pady=10)
-            self.control_buttons[button_property[0]] = b
-            i += 1
+    def setup_buttons_and_callbacks(self, parent):
+        # Callbacks
+        def execute_with_error_handling(func):
+            try:
+                func()
+            except Exception as e:
+                messagebox.showerror(title=None, message="Gabella, \"{}\"".format(e))
         
-        self.update_periodically()
+        def status_button_callback():
+            pass
 
-        # Labels and default values for the substrate and source entries
-        self.labels = ['Temperature', 'TempOffset', 'KP', 'KD']
+        def start_button_callback():
+            execute_with_error_handling(ProcessManager.start_process)
 
-        # Substrate entries
-        tk.Label(parent, text='Substrate').grid(row=0, column=1, padx=10, pady=10)
-        for i in range(4):
-            e = tk.Entry(parent)
-            e.insert(0, self.substate_default[i])
-            e.grid(row=i+1, column=1)
-            self.parameters_entries['Substrate'][self.labels[i]] = e
+        def stop_button_callback():
+            ProcessManager.stop_process()
 
-        # Source entries
-        tk.Label(parent, text='Source').grid(row=0, column=4, padx=10, pady=10)
-        for i in range(4):
-            tk.Label(parent, text=self.labels[i]).grid(row=i+1, column=3, padx=10, pady=10)
-            e = tk.Entry(parent)
-            e.insert(0, self.source_default[i])
-            e.grid(row=i+1, column=4, padx=10, pady=10)
-            self.parameters_entries['Source'][self.labels[i]] = e
+        def compile_button_callback():
+            def action():
+                stop_button_callback()
+                ProcessManager.compile_flush_arduino(
+                    self.header_file_path, 
+                    self.parameters_entries, 
+                    self.labels
+                )
+            execute_with_error_handling(action)
 
-        # Additional entries in the 3rd column
-        # Additional entries
-        additional_labels = ['Name', 'Timer', 'Interval temp', ]
-        additional_defaults = [self.source_default[0], '', '30']
-        for i, label in enumerate(additional_labels):
-            tk.Label(parent, text=label).grid(row=i+1, column=5, padx=10, pady=10)
-            e = tk.Entry(parent)
-            e.grid(row=i+1, column=6)
-            e.insert(0, additional_defaults[i])
-            self.parameters_entries['Additional'][label] = e
+        def clear_button_callback():
+            print("Clearing file")
+            FileManager.clear_file(self.output_file_path)
 
-        # Temperature of sublimation label
-        tk.Label(parent, text='Time of sublimation').grid(row=1, column=7, padx=10, pady=10)
-        self.temperature_interval_label = tk.Label(parent, text='None')
-        self.temperature_interval_label.grid(row=1, column=8)
+        # Linking callbacks and buttons
+        button_properties = [
+            ['Status', status_button_callback],
+            ['Start', start_button_callback],
+            ['Stop', stop_button_callback],
+            ['Compile', compile_button_callback],
+            ['Clear', clear_button_callback]
+        ]
 
-        # Median temperature label
-        tk.Label(parent, text='Median temperature').grid(row=2, column=7, padx=10, pady=10)
-        self.source_temperature_median_label = tk.Label(parent, text='')
-        self.source_temperature_median_label.grid(row=2, column=8)
+        for i, (button_text, button_callback) in enumerate(button_properties):
+            b = tk.Button(parent, text=button_text, command=button_callback)
+            b.grid(row=i, column=0)
+            self.control_buttons[button_text] = b
 
-        tk.Label(parent, text='Median temperature').grid(row=3, column=7, padx=10, pady=10)
-        self.substrate_temperature_median_label = tk.Label(parent, text='')
-        self.substrate_temperature_median_label.grid(row=3, column=8)
-
-        FileManager.load_data(self.parameters_entries, "data/current.pkl")
+        # Update color of a status button
+        def status_updater(control_buttons):
+            status_color = "green" if ProcessManager.is_process_running() else "red"
+            control_buttons['Status'].configure(bg=status_color)
+            control_buttons['Status'].after(50, lambda: status_updater(control_buttons))
+        
+        status_updater(self.control_buttons)
 
         # Save/Load buttons
         for i in range(5):
             filename = f"data/{i}.pkl"
             save_button = tk.Button(parent, text=f"Save {i+1}", command=lambda fn=filename: FileManager.save_data(self.parameters_entries, fn))
-            save_button.grid(row=i+1, column=10, padx=10, pady=10)
+            save_button.grid(row=i+1, column=10)
             load_button = tk.Button(parent, text=f"Load {i+1}", command=lambda fn=filename: FileManager.load_data(self.parameters_entries, fn))
-            load_button.grid(row=i+1, column=11, padx=10, pady=10)
+            load_button.grid(row=i+1, column=11)
 
+    def setup_gui(self, parent):
+        def create_entry(parent, default_value, row, column):
+            e = tk.Entry(parent)
+            e.insert(0, default_value)
+            e.grid(row=row, column=column)
+            return e
 
-        
+        # Source/Substrate entries
+        self.labels = ['Temperature', 'TempOffset', 'KP', 'KD']
+        self.substate_default = ['460', '15', '0.02', '0.40']
+        self.source_default   = ['460', '15', '0.02', '0.40']
+        tk.Label(parent, text='Substrate').grid(row=0, column=1)
+        tk.Label(parent, text='Source').grid(row=0, column=3)
+        for i in range(4):
+            tk.Label(parent, text=self.labels[i]).grid(row=i+1, column=2)
+            self.parameters_entries['Substrate'][self.labels[i]] = create_entry(parent, self.substate_default[i], i+1, 1)
+            self.parameters_entries['Source'][self.labels[i]] = create_entry(parent, self.source_default[i], i+1, 3)
+            
+        # Additional entries
+        additional_labels = ['Name', 'Timer', 'Interval temp', ]
+        additional_defaults = ['Mykhaylo', '30', self.source_default[0]]
+        for i, label in enumerate(additional_labels):
+            tk.Label(parent, text=label).grid(row=i+1, column=5)
+            self.parameters_entries['Additional'][label] = create_entry(parent, additional_defaults[i], i+1, 6)
 
+        # Temperature of sublimation label
+        tk.Label(parent, text='Time of sublimation').grid(row=1, column=7)
+        self.temperature_interval_label = tk.Label(parent, text='None')
+        self.temperature_interval_label.grid(row=1, column=8)
 
+        # Median temperature label
+        tk.Label(parent, text='Median temperature').grid(row=2, column=7)
+        self.source_temperature_median_label = tk.Label(parent, text='')
+        self.source_temperature_median_label.grid(row=2, column=8)
 
-    # ========== Callbacks ==========
+        tk.Label(parent, text='Median temperature').grid(row=3, column=7)
+        self.substrate_temperature_median_label = tk.Label(parent, text='')
+        self.substrate_temperature_median_label.grid(row=3, column=8)
 
-    def status_button_callback(self):
-        None
-
-    def start_button_callback(self):
         try:
-            ProcessManager.start_process()
-        except Exception as e:
-                messagebox.showerror(title=None, message="Gabella, \"{}\"".format(e))
-
-    def stop_button_callback(self):
-        ProcessManager.stop_process()
-        
-    def update_periodically(self):
-        if ProcessManager.is_process_running():
-            self.control_buttons['Status'].configure(bg="green")
-        else:
-            self.control_buttons['Status'].configure(bg="red")
-        self.after(50, self.update_periodically)
-
-    def compile_button_callback(self):
-        try:
-            self.stop_button_callback()
-            ProcessManager.compile_flush_arduino(self.header_file_path, self.parameters_entries, self.labels)
-
-        except Exception as e:
-                messagebox.showerror(title=None, message="Gabella, \"{}\"".format(e))
-
-    def clear_button_callback(self):
-        print("Clearing file")
-        FileManager.clear_file(self.output_file_path)
+            FileManager.load_data(self.parameters_entries, "data/current.pkl", False)
+        except:
+            pass
 
     def update_graph(self, i):
         if len(self.parameters_entries['Substrate']) > 0:

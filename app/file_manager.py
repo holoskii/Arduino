@@ -114,12 +114,13 @@ class FileManager:
             pickle.dump(text_data, output)
 
     @staticmethod
-    def load_data(data, filename):
+    def load_data(data, filename, show_error=True):
         try:
             with open(filename, 'rb') as input:
                 loaded_data = pickle.load(input)
         except Exception as e:
-            messagebox.showerror(title=None, message="This safe file doesn't exist yet")
+            if show_error:
+                messagebox.showerror(title=None, message="This safe file doesn't exist yet")
         # Update the text content of each Entry widget
         for k1, v1 in loaded_data.items():
             for k2, v2 in v1.items():
