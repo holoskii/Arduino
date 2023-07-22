@@ -1,4 +1,4 @@
-import os, signal, subprocess, numpy as np, tkinter as tk
+import os, signal, subprocess, pickle, numpy as np, tkinter as tk
 import time, matplotlib.animation as mpl_animation
 from tkinter import messagebox
 from typing import List, Dict
@@ -25,9 +25,7 @@ class Application(tk.Tk):
         # Initialize attributes
         self.process_holder = [None]
         self.control_buttons: Dict[str, tk.Button] = {}
-        self.parameters_entries: Dict[str, Dict[str, tk.Entry]] = defaultdict(dict)
-        self.timer_entry: tk.Entry = None
-        self.temperature_interval_entry: tk.Entry = None
+        self.parameters_entries: Dict[str, Dict[str, tk.Entry]] = {'Substrate': {}, 'Source': {}, 'Additional': {}}
         self.temperature_interval_label: tk.Label = None
         self.source_temperature_median_label: tk.Label = None
         self.substrate_temperature_median_label: tk.Label = None
@@ -54,9 +52,27 @@ class Application(tk.Tk):
         bottom_frame.pack(side=tk.BOTTOM, pady=10)
 
         # Set up GUI components
-        self.setup_gui(bottom_frame)
+        self.setup_gui(bottom_frame)    
         self.setup_buttons(bottom_frame)
 
+        # Functions to save and load data
+    def save_data(self, data, filename):
+        # Create a copy of data with text content only
+        text_data = {k1: {k2: v2.get() for k2, v2 in v1.items()} for k1, v1 in data.items()}
+        with open(filename, 'wb') as output:
+            pickle.dump(text_data, output)
+
+    def load_data(self, data, filename):
+        try:
+            with open(filename, 'rb') as input:
+                loaded_data = pickle.load(input)
+        except Exception as e:
+            messagebox.showerror(title=None, message="This safe file doesn't exist yet")
+        # Update the text content of each Entry widget
+        for k1, v1 in loaded_data.items():
+            for k2, v2 in v1.items():
+                data[k1][k2].delete(0, tk.END)
+                data[k1][k2].insert(0, v2)
 
     def setup_gui(self, parent):
         # Labels and default values for the substrate and source entries
@@ -79,21 +95,25 @@ class Application(tk.Tk):
             e.grid(row=i+1, column=4, padx=10, pady=10)
             self.parameters_entries['Source'][self.labels[i]] = e
 
+        # Save/Load buttons
+        for i in range(5):
+            filename = f"data/{i}.pkl"
+            save_button = tk.Button(parent, text=f"Save {i+1}", command=lambda fn=filename: self.save_data(self.parameters_entries, fn))
+            save_button.grid(row=6, column=2*i, padx=10, pady=10)
+            load_button = tk.Button(parent, text=f"Load {i+1}", command=lambda fn=filename: self.load_data(self.parameters_entries, fn))
+            load_button.grid(row=6, column=2*i+1, padx=10, pady=10)
+
+
         # Additional entries in the 3rd column
-        tk.Label(parent, text='Interval target temp').grid(row=0, column=5, padx=10, pady=10)
-        e = tk.Entry(parent)
-        e.grid(row=0, column=6)
-        e.insert(0, self.source_default[0])
-        self.temperature_interval_entry = e
-
-        tk.Label(parent, text='Name').grid(row=1, column=5, padx=10, pady=10)
-        tk.Entry(parent).grid(row=1, column=6)
-
-        tk.Label(parent, text='Timer (in min)').grid(row=2, column=5, padx=10, pady=10)
-        e = tk.Entry(parent)
-        e.grid(row=2, column=6)
-        e.insert(0, '30')
-        self.timer_entry = e
+        # Additional entries
+        additional_labels = ['Interval temp', 'Name', 'Timer']
+        additional_defaults = [self.source_default[0], '', '30']
+        for i, label in enumerate(additional_labels):
+            tk.Label(parent, text=label).grid(row=i, column=5, padx=10, pady=10)
+            e = tk.Entry(parent)
+            e.grid(row=i, column=6)
+            e.insert(0, additional_defaults[i])
+            self.parameters_entries['Additional'][label] = e
 
         # Temperature of sublimation label
         tk.Label(parent, text='Time of sublimation').grid(row=3, column=5, padx=10, pady=10)
@@ -109,6 +129,7 @@ class Application(tk.Tk):
         self.substrate_temperature_median_label = tk.Label(parent, text='')
         self.substrate_temperature_median_label.grid(row=1, column=9)
 
+        self.load_data(self.parameters_entries, "data/current.pkl")
 
     def write_to_header(self):
         # Get values from the Entry fields
@@ -116,7 +137,7 @@ class Application(tk.Tk):
         source_values = [self.parameters_entries['Source'][label].get() for label in self.labels]
 
         # Verify the values are valid floats
-        for value in substrate_values + source_values + [self.timer_entry.get()]:
+        for value in substrate_values + source_values + [self.parameters_entries['Additional']['Timer'].get()] + [self.parameters_entries['Additional']['Interval temp'].get()]:
             try:
                 float(value)
             except ValueError:
@@ -135,7 +156,7 @@ class Application(tk.Tk):
         header_lines.append("static constexpr double     SOURCE_KP             = {};\n".format(source_values[2]))
         header_lines.append("static constexpr double     SOURCE_KD             = {};\n".format(source_values[3]))
         header_lines.append("\n")
-        header_lines.append("static constexpr unsigned long DEPOSITION_TIME_MS = {};\n".format(int(self.timer_entry.get()) * 60 * 1000))
+        header_lines.append("static constexpr unsigned long DEPOSITION_TIME_MS = {};\n".format(int(self.parameters_entries['Additional']['Timer'].get()) * 60 * 1000))
 
         # Write to the header file
         with open(self.header_file_path, "w") as header_file:
@@ -249,6 +270,9 @@ class Application(tk.Tk):
         self.update_periodically()
 
     def update_graph(self, i):
+        if len(self.parameters_entries['Substrate']) > 0:
+            self.save_data(self.parameters_entries, "data/current.pkl")
+
         # print('Update graph')
 
         def find_temperature_interval(temp_values, X):
@@ -281,7 +305,7 @@ class Application(tk.Tk):
         temperature_interval = None
         try:
             temperature_interval = find_temperature_interval(reader.temp2_values, 
-                float(self.temperature_interval_entry.get()))
+                float(self.parameters_entries['Additional']['Interval temp'].get()))
         except:
             print('Failed to compute interval')
         
