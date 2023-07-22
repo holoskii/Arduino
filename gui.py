@@ -53,7 +53,6 @@ class Application(tk.Tk):
 
         # Set up GUI components
         self.setup_gui(bottom_frame)    
-        self.setup_buttons(bottom_frame)
 
         # Functions to save and load data
     def save_data(self, data, filename):
@@ -75,6 +74,22 @@ class Application(tk.Tk):
                 data[k1][k2].insert(0, v2)
 
     def setup_gui(self, parent):
+        button_properties = [
+            ['Status', self.status_button_callback],
+            ['Start', self.start_button_callback],
+            ['Stop', self.stop_button_callback],
+            ['Compile', self.compile_button_callback],
+            ['Clear', self.clear_button_callback]]
+
+        i: int = 0
+        for button_property in button_properties:
+            b = tk.Button(parent, command=button_property[1], text=button_property[0])
+            b.grid(row=i, column=0, rowspan=1, padx=10, pady=10)
+            self.control_buttons[button_property[0]] = b
+            i += 1
+        
+        self.update_periodically()
+
         # Labels and default values for the substrate and source entries
         self.labels = ['Temperature', 'TempOffset', 'KP', 'KD']
 
@@ -95,42 +110,43 @@ class Application(tk.Tk):
             e.grid(row=i+1, column=4, padx=10, pady=10)
             self.parameters_entries['Source'][self.labels[i]] = e
 
-        # Save/Load buttons
-        for i in range(5):
-            filename = f"data/{i}.pkl"
-            save_button = tk.Button(parent, text=f"Save {i+1}", command=lambda fn=filename: self.save_data(self.parameters_entries, fn))
-            save_button.grid(row=6, column=2*i, padx=10, pady=10)
-            load_button = tk.Button(parent, text=f"Load {i+1}", command=lambda fn=filename: self.load_data(self.parameters_entries, fn))
-            load_button.grid(row=6, column=2*i+1, padx=10, pady=10)
-
-
         # Additional entries in the 3rd column
         # Additional entries
-        additional_labels = ['Interval temp', 'Name', 'Timer']
+        additional_labels = ['Name', 'Timer', 'Interval temp', ]
         additional_defaults = [self.source_default[0], '', '30']
         for i, label in enumerate(additional_labels):
-            tk.Label(parent, text=label).grid(row=i, column=5, padx=10, pady=10)
+            tk.Label(parent, text=label).grid(row=i+1, column=5, padx=10, pady=10)
             e = tk.Entry(parent)
-            e.grid(row=i, column=6)
+            e.grid(row=i+1, column=6)
             e.insert(0, additional_defaults[i])
             self.parameters_entries['Additional'][label] = e
 
         # Temperature of sublimation label
-        tk.Label(parent, text='Time of sublimation').grid(row=3, column=5, padx=10, pady=10)
+        tk.Label(parent, text='Time of sublimation').grid(row=1, column=7, padx=10, pady=10)
         self.temperature_interval_label = tk.Label(parent, text='None')
-        self.temperature_interval_label.grid(row=3, column=6)
+        self.temperature_interval_label.grid(row=1, column=8)
 
         # Median temperature label
-        tk.Label(parent, text='Median temperature').grid(row=0, column=8, padx=10, pady=10)
+        tk.Label(parent, text='Median temperature').grid(row=2, column=7, padx=10, pady=10)
         self.source_temperature_median_label = tk.Label(parent, text='')
-        self.source_temperature_median_label.grid(row=0, column=9)
+        self.source_temperature_median_label.grid(row=2, column=8)
 
-        tk.Label(parent, text='Median temperature').grid(row=1, column=8, padx=10, pady=10)
+        tk.Label(parent, text='Median temperature').grid(row=3, column=7, padx=10, pady=10)
         self.substrate_temperature_median_label = tk.Label(parent, text='')
-        self.substrate_temperature_median_label.grid(row=1, column=9)
+        self.substrate_temperature_median_label.grid(row=3, column=8)
 
         self.load_data(self.parameters_entries, "data/current.pkl")
 
+        # Save/Load buttons
+        for i in range(5):
+            filename = f"data/{i}.pkl"
+            save_button = tk.Button(parent, text=f"Save {i+1}", command=lambda fn=filename: self.save_data(self.parameters_entries, fn))
+            save_button.grid(row=i+1, column=10, padx=10, pady=10)
+            load_button = tk.Button(parent, text=f"Load {i+1}", command=lambda fn=filename: self.load_data(self.parameters_entries, fn))
+            load_button.grid(row=i+1, column=11, padx=10, pady=10)
+
+
+        
     def write_to_header(self):
         # Get values from the Entry fields
         substrate_values = [self.parameters_entries['Substrate'][label].get() for label in self.labels]
@@ -251,23 +267,6 @@ class Application(tk.Tk):
         self.stop_button_callback()
         with open(self.output_file_path, 'w') as file:
             file.truncate(0)
-
-    def setup_buttons(self, parent):
-        button_properties = [
-            ['Status', self.status_button_callback],
-            ['Start', self.start_button_callback],
-            ['Stop', self.stop_button_callback],
-            ['Compile', self.compile_button_callback],
-            ['Clear', self.clear_button_callback]]
-
-        i: int = 0
-        for button_property in button_properties:
-            b = tk.Button(parent, command=button_property[1], text=button_property[0])
-            b.grid(row=i, column=7, rowspan=1, padx=10, pady=10)
-            self.control_buttons[button_property[0]] = b
-            i += 1
-        
-        self.update_periodically()
 
     def update_graph(self, i):
         if len(self.parameters_entries['Substrate']) > 0:
