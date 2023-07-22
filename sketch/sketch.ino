@@ -168,9 +168,11 @@ public:
     void sendParameters() {
         int pos = snprintf(serialBuf, serialBufLen
             , "START: Substrate: T=(%3d+%2d) PD=(%d.%02d,%d.%02d); "
-                "Source: T=(%3d+%2d) PD=(%d.%02d,%d.%02d)\n\n"
+                "Source: T=(%3d+%2d) PD=(%d.%02d,%d.%02d); " 
+                "TIMER: %lus\n\n"
             , SUBSTRATE_TEMP, SUBSTRATE_TEMP_OFFSET, ip(SUBSTRATE_KP), fp(SUBSTRATE_KP), ip(SUBSTRATE_KD), fp(SUBSTRATE_KD)
-            , SOURCE_TEMP, SOURCE_TEMP_OFFSET, ip(SOURCE_KP), fp(SOURCE_KP), ip(SOURCE_KD), fp(SOURCE_KD));
+            , SOURCE_TEMP, SOURCE_TEMP_OFFSET, ip(SOURCE_KP), fp(SOURCE_KP), ip(SOURCE_KD), fp(SOURCE_KD)
+            , DEPOSITION_TIME_MS / 1000);
         assert(pos < serialBufLen);
         Serial.write(serialBuf, pos);
         Serial.flush(); 
