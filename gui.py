@@ -135,7 +135,7 @@ class Application(tk.Tk):
         header_lines.append("static constexpr double     SOURCE_KP             = {};\n".format(source_values[2]))
         header_lines.append("static constexpr double     SOURCE_KD             = {};\n".format(source_values[3]))
         header_lines.append("\n")
-        header_lines.append("static constexpr long       DEPOSITION_TIME_MS    = {};\n".format(int(self.timer_entry.get()) * 60 * 1000))
+        header_lines.append("static constexpr unsigned long DEPOSITION_TIME_MS = {};\n".format(int(self.timer_entry.get()) * 60 * 1000))
 
         # Write to the header file
         with open(self.header_file_path, "w") as header_file:
