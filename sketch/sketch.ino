@@ -241,18 +241,21 @@ public:
             , ip(sourceController.error), int(sourceController.p * 100), int(sourceController.d * 100)
             , int(sourceController.uncappedCV * 100), int(sourceController.cv * 100), ip(sourceController.temperature));
 
-        if(depositionStarted) {
-            if(depositionEnded) {
-                pos += snprintf(serialBuf + pos, serialBufLen - pos, "TIMER ENDED");
-            }
+        pos += snprintf(serialBuf + pos, serialBufLen - pos
+                        , "TIMER FULL: DEPOSITION_TIME_MS=%lu, depositionStartTime_ms=%lu, currentTime_ms=%lu"
+                        , DEPOSITION_TIME_MS, depositionStartTime, currentTime);
+
+        if(depositionStarted && !depositionEnded) {
             pos += snprintf(serialBuf + pos, serialBufLen - pos
-                        , "TIMER ACTIVE: started_at=%lu, time left=%lu"
-                        , depositionStartTime, (currentTime - depositionStartTime) / 1000);
+                        , "TIMER ACTIVE: time left_s=%lu"
+                        , (currentTime - depositionStartTime) / 1000);
+        }
+        else if (depositionEnded) {
+            pos += snprintf(serialBuf + pos, serialBufLen - pos, "TIMER ENDED");
         }
         else {
             pos += snprintf(serialBuf + pos, serialBufLen - pos, "TIMER OFF");
         }
-        pos += snprintf(serialBuf + pos, serialBufLen - pos, "\n\n");
 
 
         // Try to send all the info in one buffer to avoid flickering in receiving terminal

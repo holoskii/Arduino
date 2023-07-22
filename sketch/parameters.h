@@ -10,4 +10,4 @@ static constexpr int        SOURCE_TEMP_OFFSET    = 15;
 static constexpr double     SOURCE_KP             = 0.02;
 static constexpr double     SOURCE_KD             = 0.40;
 
-static constexpr long       DEPOSITION_TIME_MS    = 30 * 60 * 1000;
+static constexpr long       DEPOSITION_TIME_MS    = 1800000;

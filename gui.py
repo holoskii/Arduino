@@ -27,8 +27,10 @@ class Application(tk.Tk):
         self.control_buttons: Dict[str, tk.Button] = {}
         self.parameters_entries: Dict[str, Dict[str, tk.Entry]] = defaultdict(dict)
         self.timer_entry: tk.Entry = None
+        self.temperature_interval_entry: tk.Entry = None
         self.temperature_interval_label: tk.Label = None
-        self.temperature_median_label: tk.Label = None
+        self.source_temperature_median_label: tk.Label = None
+        self.substrate_temperature_median_label: tk.Label = None
 
         # Configure the window
         self.geometry("1600x900")
@@ -78,6 +80,12 @@ class Application(tk.Tk):
             self.parameters_entries['Source'][self.labels[i]] = e
 
         # Additional entries in the 3rd column
+        tk.Label(parent, text='Interval target temp').grid(row=0, column=5, padx=10, pady=10)
+        e = tk.Entry(parent)
+        e.grid(row=0, column=6)
+        e.insert(0, self.source_default[0])
+        self.temperature_interval_entry = e
+
         tk.Label(parent, text='Name').grid(row=1, column=5, padx=10, pady=10)
         tk.Entry(parent).grid(row=1, column=6)
 
@@ -93,9 +101,13 @@ class Application(tk.Tk):
         self.temperature_interval_label.grid(row=3, column=6)
 
         # Median temperature label
-        tk.Label(parent, text='Median temperature').grid(row=4, column=5, padx=10, pady=10)
-        self.temperature_median_label = tk.Label(parent, text='')
-        self.temperature_median_label.grid(row=4, column=6)
+        tk.Label(parent, text='Median temperature').grid(row=0, column=8, padx=10, pady=10)
+        self.source_temperature_median_label = tk.Label(parent, text='')
+        self.source_temperature_median_label.grid(row=0, column=9)
+
+        tk.Label(parent, text='Median temperature').grid(row=1, column=8, padx=10, pady=10)
+        self.substrate_temperature_median_label = tk.Label(parent, text='')
+        self.substrate_temperature_median_label.grid(row=1, column=9)
 
 
     def write_to_header(self):
@@ -123,7 +135,7 @@ class Application(tk.Tk):
         header_lines.append("static constexpr double     SOURCE_KP             = {};\n".format(source_values[2]))
         header_lines.append("static constexpr double     SOURCE_KD             = {};\n".format(source_values[3]))
         header_lines.append("\n")
-        header_lines.append("static constexpr long       DEPOSITION_TIME_MS    = {} * 60 * 1000;\n".format(self.timer_entry.get()))
+        header_lines.append("static constexpr long       DEPOSITION_TIME_MS    = {};\n".format(int(self.timer_entry.get()) * 60 * 1000))
 
         # Write to the header file
         with open(self.header_file_path, "w") as header_file:
@@ -269,7 +281,7 @@ class Application(tk.Tk):
         temperature_interval = None
         try:
             temperature_interval = find_temperature_interval(reader.temp2_values, 
-                float(self.parameters_entries['Source']['Temperature'].get()))
+                float(self.temperature_interval_entry.get()))
         except:
             print('Failed to compute interval')
         
@@ -283,16 +295,26 @@ class Application(tk.Tk):
                 text = f'{interval_sec // 60}m {interval_sec % 60}s'
                 self.temperature_interval_label.config(text=text)
 
-            if self.temperature_median_label is not None:
+            if self.source_temperature_median_label is not None:
                 interval_values = reader.temp2_values[temperature_interval[0]:temperature_interval[1]]
                 median_value = np.median(interval_values)
-                text = f'{median_value:.2f}°C'
-                self.temperature_median_label.config(text=text)
+                deviation_value = np.std(interval_values)
+                text = f'{median_value:.2f}°C\\{deviation_value:.2f}°C'
+                self.source_temperature_median_label.config(text=text)
+
+            if self.substrate_temperature_median_label is not None:
+                interval_values = reader.temp1_values[temperature_interval[0]:temperature_interval[1]]
+                median_value = np.median(interval_values)
+                deviation_value = np.std(interval_values)
+                text = f'{median_value:.2f}°C\\{deviation_value:.2f}°C'
+                self.substrate_temperature_median_label.config(text=text)
         else:
             if self.temperature_interval_label is not None:
                 self.temperature_interval_label.config(text='None')
-            if self.temperature_median_label is not None:
-                self.temperature_median_label.config(text='None')
+            if self.source_temperature_median_label is not None:
+                self.source_temperature_median_label.config(text='None')
+            if self.substrate_temperature_median_label is not None:
+                self.substrate_temperature_median_label.config(text='None')
 
         self.fig.canvas.draw()
 
