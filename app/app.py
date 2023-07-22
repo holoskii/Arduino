@@ -42,8 +42,7 @@ class Application(tk.Tk):
         # Set up GUI components
         self.setup_buttons_and_callbacks(bottom_frame)    
         self.setup_gui(bottom_frame)    
-        for child in bottom_frame.winfo_children():
-            child.grid_configure(padx=10, pady=10)
+        self.finalize_setup(bottom_frame)
 
     # ========== Buttons and callbacks ==========
     def setup_buttons_and_callbacks(self, parent):
@@ -76,14 +75,6 @@ class Application(tk.Tk):
             b = tk.Button(parent, text=button_text, command=button_callback)
             b.grid(row=i, column=0)
             self.control_buttons[button_text] = b
-
-        # Update color of a status button
-        def status_updater(control_buttons):
-            status_color = "green" if ProcessManager.is_process_running() else "red"
-            control_buttons['Status'].configure(bg=status_color)
-            control_buttons['Status'].after(50, lambda: status_updater(control_buttons))
-        
-        status_updater(self.control_buttons)
 
         # Save/Load buttons
         for i in range(5):
@@ -126,24 +117,33 @@ class Application(tk.Tk):
             self.info_labels[label_info] = tk.Label(parent, text='None')
             self.info_labels[label_info].grid(row=row, column=8)
 
+
+    def finalize_setup(self, bottom_frame):
+        # Apply style for better looks
+        for child in bottom_frame.winfo_children():
+            child.grid_configure(padx=10, pady=10)
+
         # Try to load data from the previous session
         FileManager.load_data(self.parameters_entries, "data/current.pkl", False)
 
+        # Update color of a status button
+        def status_updater(control_buttons):
+            status_color = "green" if ProcessManager.is_process_running() else "red"
+            control_buttons['Status'].configure(bg=status_color)
+            control_buttons['Status'].after(50, lambda: status_updater(control_buttons))
+        status_updater(self.control_buttons)
+
+
+        # Update color of a status button
+        def parameter_saver(self):
+            if len(self.parameters_entries['Substrate']) > 0:
+                FileManager.save_data(self.parameters_entries, "data/current.pkl")
+            self.after(1000, lambda: parameter_saver(self))
+        parameter_saver(self)
+
 
     def update_graph(self, i):
-        if len(self.parameters_entries['Substrate']) > 0:
-            FileManager.save_data(self.parameters_entries, "data/current.pkl")
-
-        def find_temperature_interval(temp_values, X):
-            left_boundary_index = None
-            right_boundary_index = None
-            for i, value in enumerate(temp_values):
-                if left_boundary_index is None and value > X:
-                    left_boundary_index = i
-                elif left_boundary_index is not None and value >= X:
-                    right_boundary_index = i
-            return [left_boundary_index, right_boundary_index] if left_boundary_index is not None and right_boundary_index is not None else None
-
+        # Read new data and update graph with it
         reader = FileParser(self.data_file_path).read_file()
 
         self.ax.clear()
@@ -160,6 +160,17 @@ class Application(tk.Tk):
         self.ax.scatter(reader.time_values, reader.temp1_values, label='Substrate', s=3, color='b')
         self.ax.scatter(reader.time_values, reader.temp2_values, label='Source', s=3, color='r')
         self.ax.legend()
+
+        # Update labels with info
+        def find_temperature_interval(temp_values, X):
+            left_boundary_index = None
+            right_boundary_index = None
+            for i, value in enumerate(temp_values):
+                if left_boundary_index is None and value > X:
+                    left_boundary_index = i
+                elif left_boundary_index is not None and value >= X:
+                    right_boundary_index = i
+            return [left_boundary_index, right_boundary_index] if left_boundary_index is not None and right_boundary_index is not None else None
 
         temperature_interval = None
         try:
