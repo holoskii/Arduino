@@ -1,14 +1,16 @@
-import numpy as np, tkinter as tk
+import numpy as np, customtkinter as ctk
 import matplotlib.animation as mpl_animation
-from tkinter import messagebox
+from tkinter import *
 from typing import Dict
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
+from CTkMessagebox import CTkMessagebox
+
 from file_manager import FileParser,FileManager
 from process_manager import ProcessManager
 
-class Application(tk.Tk):
+class Application(ctk.CTk):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -18,8 +20,8 @@ class Application(tk.Tk):
         self.header_file_path = 'sketch/parameters.h'
 
         # Initialize attributes
-        self.control_buttons: Dict[str, tk.Button] = {}
-        self.parameters_entries: Dict[str, Dict[str, tk.Entry]] = {'Substrate': {}, 'Source': {}, 'Additional': {}}
+        self.control_buttons: Dict[str, ctk.Button] = {}
+        self.parameters_entries: Dict[str, Dict[str, ctk.Entry]] = {'Substrate': {}, 'Source': {}, 'Additional': {}}
         self.info_labels = {}
 
         # Configure the window
@@ -32,12 +34,12 @@ class Application(tk.Tk):
 
         self.canvas = FigureCanvasTkAgg(self.fig, master=self)
         self.canvas.draw()
-        self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+        self.canvas.get_tk_widget().pack(side=ctk.TOP, fill=ctk.BOTH, expand=True)
 
         self.ani = mpl_animation.FuncAnimation(self.fig, self.update_graph, interval=500)
 
-        bottom_frame = tk.Frame(self, height=100)
-        bottom_frame.pack(side=tk.BOTTOM, pady=10)
+        bottom_frame = ctk.CTkFrame(self, height=100)
+        bottom_frame.pack(side=ctk.BOTTOM, pady=10)
 
         # Set up GUI components
         self.setup_buttons_and_callbacks(bottom_frame)    
@@ -51,7 +53,7 @@ class Application(tk.Tk):
             try:
                 func()
             except Exception as e:
-                messagebox.showerror(title=None, message="Gabella, \"{}\"".format(e))
+                CTkMessagebox(title="Error", message="Gabella, \"{}\"".format(e))
         
         def compile_button_callback():
             def action():
@@ -72,23 +74,23 @@ class Application(tk.Tk):
         ]
 
         for i, (button_text, button_callback) in enumerate(button_properties):
-            b = tk.Button(parent, text=button_text, command=button_callback)
+            b = ctk.CTkButton(parent, text=button_text, command=button_callback)
             b.grid(row=i, column=0)
             self.control_buttons[button_text] = b
 
         # Save/Load buttons
         for i in range(5):
             filename = f"data/{i}.pkl"
-            save_button = tk.Button(parent, text=f"Save {i+1}", command=lambda fn=filename: FileManager.save_data(self.parameters_entries, fn))
+            save_button = ctk.CTkButton(parent, text=f"Save {i+1}", command=lambda fn=filename: FileManager.save_data(self.parameters_entries, fn))
             save_button.grid(row=i, column=10)
-            load_button = tk.Button(parent, text=f"Load {i+1}", command=lambda fn=filename: FileManager.load_data(self.parameters_entries, fn))
+            load_button = ctk.CTkButton(parent, text=f"Load {i+1}", command=lambda fn=filename: FileManager.load_data(self.parameters_entries, fn))
             load_button.grid(row=i, column=11)
 
 
     # ========== Labels and entries ==========
     def setup_gui(self, parent):
         def create_entry(parent, default_value, row, column):
-            e = tk.Entry(parent)
+            e = ctk.CTkEntry(parent)
             e.insert(0, default_value)
             e.grid(row=row, column=column)
             return e
@@ -102,10 +104,10 @@ class Application(tk.Tk):
         ]
 
         for section in sections:
-            tk.Label(parent, text=section['name']).grid(row=0, column=section['column'])
+            ctk.CTkLabel(parent, text=section['name']).grid(row=0, column=section['column'])
             for i, (label, default) in enumerate(zip(section['labels'], section['defaults'])):
                 if section['name'] != 'Substrate':
-                    tk.Label(parent, text=label).grid(row=i+1, column=section['column'] - 1)
+                    ctk.CTkLabel(parent, text=label).grid(row=i+1, column=section['column'] - 1)
                 self.parameters_entries[section['name']][label] = create_entry(parent, default, i+1, section['column'])
 
 
@@ -113,8 +115,8 @@ class Application(tk.Tk):
         labels_info = ['Time of sublimation', 'Median source temperature', 'Median substrate temperature']
 
         for row, label_info in enumerate(labels_info, start=1):
-            tk.Label(parent, text=label_info).grid(row=row, column=7)
-            self.info_labels[label_info] = tk.Label(parent, text='None')
+            ctk.CTkLabel(parent, text=label_info).grid(row=row, column=7)
+            self.info_labels[label_info] = ctk.CTkLabel(parent, text='None')
             self.info_labels[label_info].grid(row=row, column=8)
 
 
@@ -129,8 +131,8 @@ class Application(tk.Tk):
         # Update color of a status button
         def status_updater(control_buttons):
             status_color = "green" if ProcessManager.is_process_running() else "red"
-            control_buttons['Status'].configure(bg=status_color)
-            control_buttons['Status'].after(50, lambda: status_updater(control_buttons))
+            control_buttons['Status'].configure(fg_color=status_color)
+            control_buttons['Status'].after(100, lambda: status_updater(control_buttons))
         status_updater(self.control_buttons)
 
 
@@ -187,21 +189,21 @@ class Application(tk.Tk):
             try:
                 interval_sec = temperature_interval[1] - temperature_interval[0]
                 text = f'{interval_sec // 60}m {interval_sec % 60}s'
-                self.info_labels['Time of sublimation'].config(text=text)
+                self.info_labels['Time of sublimation'].configure(text = text)
 
                 for info_label, data_source in {'Median substrate temperature': reader.temp1_values, 'Median source temperature': reader.temp2_values}.items():
                     interval_values = data_source[temperature_interval[0]:temperature_interval[1]]
                     median_value = np.median(interval_values)
                     deviation_value = np.std(interval_values)
                     text = f'{median_value:.2f}°C\\{deviation_value:.2f}°C'
-                    self.info_labels[info_label].config(text=text)
+                    self.info_labels[info_label].configure(text = text)
             except Exception as e:
                 print('Caught exception ' + str(e))
 
         else:
             for label_name, label_widget in self.info_labels.items():
                 if label_widget is not None:
-                    label_widget.config(text='None')
+                    label_widget.configure(text = text)
 
         self.fig.canvas.draw()
 

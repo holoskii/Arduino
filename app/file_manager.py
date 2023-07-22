@@ -1,6 +1,6 @@
 import pickle, tkinter as tk
 import time
-from tkinter import messagebox
+from CTkMessagebox import CTkMessagebox
 from typing import List
 from datetime import datetime
 
@@ -117,7 +117,7 @@ class FileManager:
                 loaded_data = pickle.load(input)
         except Exception as e:
             if show_error:
-                messagebox.showerror(title=None, message="This safe file doesn't exist yet")
+                CTkMessagebox(title="Error", message="This savefile doesn't exist yet")
             return
         # Update the text content of each Entry widget
         for k1, v1 in loaded_data.items():
