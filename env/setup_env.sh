@@ -1,7 +1,7 @@
 sudo add-apt-repository universe
 sudo apt update && sudo apt install git python3-pip fish terminator python3-tk python3-pil python3-pil.imagetk
 sudo snap install code --classic
-pip3 install matplotlib
+pip3 install matplotlib customtkinter CTkMessagebox
 
 cd ~
 git clone https://github.com/holoskii/Arduino.git
