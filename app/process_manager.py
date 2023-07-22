@@ -1,13 +1,6 @@
-import os, signal, subprocess, pickle, numpy as np, tkinter as tk
-import time, matplotlib.animation as mpl_animation
-from tkinter import messagebox
-from typing import List, Dict
-from datetime import datetime
-from collections import defaultdict
-from matplotlib.figure import Figure
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import os, subprocess
 
-from file_manager import FileParser,FileManager
+from file_manager import FileManager
 
 class ProcessManager:
     @staticmethod

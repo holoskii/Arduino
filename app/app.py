@@ -1,16 +1,12 @@
-import os, signal, subprocess, pickle, numpy as np, tkinter as tk
-import time, matplotlib.animation as mpl_animation
+import numpy as np, tkinter as tk
+import matplotlib.animation as mpl_animation
 from tkinter import messagebox
-from typing import List, Dict
-from datetime import datetime
-from collections import defaultdict
+from typing import Dict
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 from file_manager import FileParser,FileManager
 from process_manager import ProcessManager
-
-# ========== Main application class ==========
 
 class Application(tk.Tk):
     
@@ -18,7 +14,7 @@ class Application(tk.Tk):
         super().__init__(*args, **kwargs)
 
         # Global variables
-        self.output_file_path = 'out.txt'
+        self.data_file_path   = 'out.txt'
         self.header_file_path = 'sketch/parameters.h'
 
         # Initialize attributes
@@ -58,35 +54,22 @@ class Application(tk.Tk):
             except Exception as e:
                 messagebox.showerror(title=None, message="Gabella, \"{}\"".format(e))
         
-        def status_button_callback():
-            pass
-
-        def start_button_callback():
-            execute_with_error_handling(ProcessManager.start_process)
-
-        def stop_button_callback():
-            ProcessManager.stop_process()
-
         def compile_button_callback():
             def action():
-                stop_button_callback()
+                ProcessManager.stop_process()
                 ProcessManager.compile_flush_arduino(
                     self.header_file_path, 
                     self.parameters_entries
                 )
             execute_with_error_handling(action)
 
-        def clear_button_callback():
-            print("Clearing file")
-            FileManager.clear_file(self.output_file_path)
-
         # Linking callbacks and buttons
         button_properties = [
-            ['Status', status_button_callback],
-            ['Start', start_button_callback],
-            ['Stop', stop_button_callback],
+            ['Status', lambda: None],
+            ['Start', lambda: execute_with_error_handling(ProcessManager.start_process)],
+            ['Stop', lambda: ProcessManager.stop_process()],
             ['Compile', compile_button_callback],
-            ['Clear', clear_button_callback]
+            ['Clear', lambda: FileManager.clear_file(self.data_file_path)]
         ]
 
         for i, (button_text, button_callback) in enumerate(button_properties):
@@ -144,14 +127,12 @@ class Application(tk.Tk):
             self.info_labels[label_info].grid(row=row, column=8)
 
         # Try to load data from the previous session
-        # FileManager.load_data(self.parameters_entries, "data/current.pkl", False)
+        FileManager.load_data(self.parameters_entries, "data/current.pkl", False)
 
 
     def update_graph(self, i):
         if len(self.parameters_entries['Substrate']) > 0:
             FileManager.save_data(self.parameters_entries, "data/current.pkl")
-
-        # print('Update graph')
 
         def find_temperature_interval(temp_values, X):
             left_boundary_index = None
@@ -163,7 +144,7 @@ class Application(tk.Tk):
                     right_boundary_index = i
             return [left_boundary_index, right_boundary_index] if left_boundary_index is not None and right_boundary_index is not None else None
 
-        reader = FileParser(self.output_file_path).read_file()
+        reader = FileParser(self.data_file_path).read_file()
 
         self.ax.clear()
         self.ax.grid()
@@ -213,18 +194,6 @@ class Application(tk.Tk):
 
         self.fig.canvas.draw()
 
-# ========== Class that parses file ==========
-
 
 app = Application()
 app.mainloop()
-
-
-# FileManager
-# Parsing
-# Writing header
-# Saving/Loading saves
-
-# Process manager
-
-# Callbacks

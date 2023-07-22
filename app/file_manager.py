@@ -1,12 +1,8 @@
-
-import os, signal, subprocess, pickle, numpy as np, tkinter as tk
-import time, matplotlib.animation as mpl_animation
+import pickle, tkinter as tk
+import time
 from tkinter import messagebox
-from typing import List, Dict
+from typing import List
 from datetime import datetime
-from collections import defaultdict
-from matplotlib.figure import Figure
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 class FileParser:
     start_prefix: str = "START: "
@@ -65,6 +61,7 @@ class FileParser:
 class FileManager:
     @staticmethod
     def clear_file(output_file_path):
+        print("Clearing file")
         with open(output_file_path, 'w') as file:
             file.truncate(0)
 
