@@ -1,0 +1,9 @@
+# Downloadable code
+env/arduino-cli
+
+# Files that can be changed during runtime
+data/*
+sketch/parameters.h
+
+# Caches
+app/__pycache__
