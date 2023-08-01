@@ -2,8 +2,11 @@
 env/arduino-cli
 
 # Files that can be changed during runtime
-data/*
+savefiles/*
 sketch/parameters.h
 
 # Caches
 app/__pycache__
+
+# Data
+data/*

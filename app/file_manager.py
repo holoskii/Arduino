@@ -3,6 +3,7 @@ import time
 from CTkMessagebox import CTkMessagebox
 from typing import List
 from datetime import datetime
+import csv
 
 class FileParser:
     start_prefix: str = "START: "
@@ -48,7 +49,7 @@ class FileParser:
                 self.last_point_time += 1
         
         end = time.time()
-        # print("File parsing time = {:.0f} ms".format(1000 * (end - start)))
+        print("File read time = {:.0f} ms".format(1000 * (end - start)))
     
         temp1 = self.temp1_values[-1] if len(self.temp1_values) > 0 else 0
         temp2 = self.temp2_values[-1] if len(self.temp2_values) > 0 else 0
@@ -126,3 +127,21 @@ class FileManager:
                     continue
                 data[k1][k2].delete(0, tk.END)
                 data[k1][k2].insert(0, v2)
+
+    @staticmethod
+    def save_graph_data(input_file_path, parameters_entries):
+        output_filename:str = str(parameters_entries['Additional']['Name'].get())
+
+        reader = FileParser(input_file_path).read_file()
+
+        start = time.time()
+        with open(f'data/{output_filename}_data.csv', 'w', newline='') as output_file:
+            writer = csv.writer(output_file)
+            writer.writerow(['Index', 'Temp1', 'Temp2'])
+
+            for i, (temp1, temp2) in enumerate(zip(reader.temp1_values, reader.temp2_values), 1):
+                writer.writerow([i, temp1, temp2])
+        
+        end = time.time()
+        print("File write time = {:.0f} ms".format(1000 * (end - start)))
+

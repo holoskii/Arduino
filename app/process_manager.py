@@ -14,8 +14,8 @@ class ProcessManager:
             raise ValueError("Failed to execute \"{}\", return code = {}".format(command, return_value))
         
         # 2. Start background process reading the device
-        #command = "cat -v /dev/ttyACM0 | tee -a ~/Arduino/out.txt"
-        command = ["bash", "-c", "cat -v /dev/ttyACM0 | tee -a ~/Arduino/out.txt &"]
+        #command = "cat -v /dev/ttyACM0 | tee -a ~/Arduino/data/data.txt"
+        command = ["bash", "-c", "cat -v /dev/ttyACM0 | tee -a ~/Arduino/data/data.txt &"]
         subprocess.Popen(command)
 
         # 3. Check if the process is running

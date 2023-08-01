@@ -26,14 +26,14 @@ end
 
 # Read the serial port, save output to the file in append mode
 function ard_read
-   sudo chmod a+rw /dev/ttyACM0 && cat -v /dev/ttyACM0 | tee -a ~/Arduino/out.txt
+   sudo chmod a+rw /dev/ttyACM0 && cat -v /dev/ttyACM0 | tee -a ~/Arduino/data/data.txt
 end
 
 function ard_read_clear
-   sudo chmod a+rw /dev/ttyACM0 && cat -v /dev/ttyACM0 | tee ~/Arduino/out.txt
+   sudo chmod a+rw /dev/ttyACM0 && cat -v /dev/ttyACM0 | tee ~/Arduino/data/data.txt
 end
 
 # Plot in real-time
 function ard_plot
-   cd ~/Arduino && python3 main.py out.txt
+   cd ~/Arduino && python3 main.py data/data.txt
 end

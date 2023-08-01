@@ -16,7 +16,7 @@ class Application(ctk.CTk):
         super().__init__(*args, **kwargs)
 
         # Global variables
-        self.data_file_path   = 'out.txt'
+        self.data_file_path   = 'data/data.txt'
         self.header_file_path = 'sketch/parameters.h'
 
         # Initialize attributes
@@ -66,21 +66,22 @@ class Application(ctk.CTk):
 
         # Linking callbacks and buttons
         button_properties = [
-            ['Status', lambda: None],
-            ['Start', lambda: execute_with_error_handling(ProcessManager.start_process)],
-            ['Stop', lambda: ProcessManager.stop_process()],
-            ['Compile', compile_button_callback],
-            ['Clear', lambda: FileManager.clear_file(self.data_file_path)]
+            ['Status',  0, 0, lambda: None],
+            ['Start',   1, 0, lambda: execute_with_error_handling(ProcessManager.start_process)],
+            ['Stop',    2, 0, lambda: ProcessManager.stop_process()],
+            ['Compile', 3, 0, compile_button_callback],
+            ['Clear',   4, 0, lambda: FileManager.clear_file(self.data_file_path)],
+            ['Save',    4, 6, lambda: FileManager.save_graph_data(self.data_file_path, self.parameters_entries)]
         ]
 
-        for i, (button_text, button_callback) in enumerate(button_properties):
+        for i, (button_text, row, column, button_callback) in enumerate(button_properties):
             b = ctk.CTkButton(parent, text=button_text, command=button_callback)
-            b.grid(row=i, column=0)
+            b.grid(row=row, column=column)
             self.control_buttons[button_text] = b
 
         # Save/Load buttons
         for i in range(5):
-            filename = f"data/{i}.pkl"
+            filename = f"savefiles/{i}.pkl"
             save_name_entry = ctk.CTkEntry(parent)
             save_name_entry.grid(row=i, column=10)
             save_name_entry.insert(0, f"EmptyName#{i}")
@@ -131,7 +132,7 @@ class Application(ctk.CTk):
             child.grid_configure(padx=10, pady=10)
 
         # Try to load data from the previous session
-        FileManager.load_data(self.parameters_entries, "data/current.pkl", False, True)
+        FileManager.load_data(self.parameters_entries, "savefiles/current.pkl", False, True)
 
         # Update color of a status button
         def status_updater(control_buttons):
@@ -144,7 +145,7 @@ class Application(ctk.CTk):
         # Update color of a status button
         def parameter_saver(self):
             if len(self.parameters_entries['Substrate']) > 0:
-                FileManager.save_data(self.parameters_entries, "data/current.pkl")
+                FileManager.save_data(self.parameters_entries, "savefiles/current.pkl")
             self.after(1000, lambda: parameter_saver(self))
         parameter_saver(self)
 
@@ -208,7 +209,7 @@ class Application(ctk.CTk):
         else:
             for label_name, label_widget in self.info_labels.items():
                 if label_widget is not None:
-                    label_widget.configure(text = text)
+                    label_widget.configure(text = 'None')
 
         self.fig.canvas.draw()
 
