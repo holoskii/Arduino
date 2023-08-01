@@ -1,6 +1,7 @@
 from typing import Dict
 import numpy as np
 import customtkinter as ctk
+import matplotlib.style as mplstyle
 import matplotlib.animation as mpl_animation
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -15,6 +16,8 @@ class Application(ctk.CTk):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        mplstyle.use('fast')
+ 
         # Global variables
         self.data_file_path   = 'data/data.txt'
         self.header_file_path = 'sketch/parameters.h'
@@ -156,6 +159,10 @@ class Application(ctk.CTk):
         timer = Timer()
 
         self.ax.clear()
+
+        timer.stop("Graph clear time")
+        timer.start()
+
         self.ax.grid()
         self.ax.set_title(reader.title, fontsize=20, y=1.04)
         self.ax.set_xlabel('Time, min', fontsize=20)
@@ -164,14 +171,19 @@ class Application(ctk.CTk):
         if reader.max_time_value < 5:
             self.ax.set_xlim(0, 5)
 
+        timer.stop("Graph setup time")
+        timer.start()
+
+
         self.ax.scatter(reader.time_values, reader.control1_values, s=3, color='b')
         self.ax.scatter(reader.time_values, reader.control2_values, s=3, color='r')
-        self.ax.plot(reader.time_values, reader.temp1_values, label='Substrate', color='b')
-        self.ax.plot(reader.time_values, reader.temp2_values, label='Source', color='r')
-        self.ax.legend()
+        self.ax.plot(reader.time_values, reader.temp1_values, label='Substrate', linewidth=3, color='b')
+        self.ax.plot(reader.time_values, reader.temp2_values, label='Source', linewidth=3, color='r')
 
         timer.stop("Scatter time")
         timer.start()
+
+        self.ax.legend()
 
         # Update labels with info
         def find_temperature_interval(temp_values, X):
@@ -215,13 +227,10 @@ class Application(ctk.CTk):
                 if label_widget is not None:
                     label_widget.configure(text = 'None')
 
-        timer.stop("Additional plot calculations")
-        timer.start()
-
-        self.fig.canvas.draw()
-
-        timer.stop("Canvas draw")
-        print("")
+        timer.stop("Additional plot calculations\n")
+        # timer.start()
+        # self.fig.canvas.draw()
+        # timer.stop("Canvas draw")
 
 
 app = Application()
