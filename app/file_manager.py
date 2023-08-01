@@ -111,7 +111,7 @@ class FileManager:
             pickle.dump(text_data, output)
 
     @staticmethod
-    def load_data(data, filename, show_error=True):
+    def load_data(data, filename, show_error=True, load_filenames=False):
         try:
             with open(filename, 'rb') as input:
                 loaded_data = pickle.load(input)
@@ -122,5 +122,7 @@ class FileManager:
         # Update the text content of each Entry widget
         for k1, v1 in loaded_data.items():
             for k2, v2 in v1.items():
+                if k1 == 'Savenames' and not load_filenames:
+                    continue
                 data[k1][k2].delete(0, tk.END)
                 data[k1][k2].insert(0, v2)

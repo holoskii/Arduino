@@ -21,7 +21,7 @@ class Application(ctk.CTk):
 
         # Initialize attributes
         self.control_buttons: Dict[str, ctk.Button] = {}
-        self.parameters_entries: Dict[str, Dict[str, ctk.Entry]] = {'Substrate': {}, 'Source': {}, 'Additional': {}}
+        self.parameters_entries: Dict[str, Dict[str, ctk.Entry]] = {'Substrate': {}, 'Source': {}, 'Additional': {}, 'Savenames': {}}
         self.info_labels = {}
 
         # Configure the window
@@ -81,10 +81,15 @@ class Application(ctk.CTk):
         # Save/Load buttons
         for i in range(5):
             filename = f"data/{i}.pkl"
+            save_name_entry = ctk.CTkEntry(parent)
+            save_name_entry.grid(row=i, column=10)
+            save_name_entry.insert(0, f"EmptyName#{i}")
+            self.parameters_entries['Savenames'][f"{i}"] = save_name_entry
+
             save_button = ctk.CTkButton(parent, text=f"Save {i+1}", command=lambda fn=filename: FileManager.save_data(self.parameters_entries, fn))
-            save_button.grid(row=i, column=10)
+            save_button.grid(row=i, column=11)
             load_button = ctk.CTkButton(parent, text=f"Load {i+1}", command=lambda fn=filename: FileManager.load_data(self.parameters_entries, fn))
-            load_button.grid(row=i, column=11)
+            load_button.grid(row=i, column=12)
 
 
     # ========== Labels and entries ==========
@@ -126,7 +131,7 @@ class Application(ctk.CTk):
             child.grid_configure(padx=10, pady=10)
 
         # Try to load data from the previous session
-        FileManager.load_data(self.parameters_entries, "data/current.pkl", False)
+        FileManager.load_data(self.parameters_entries, "data/current.pkl", False, True)
 
         # Update color of a status button
         def status_updater(control_buttons):
