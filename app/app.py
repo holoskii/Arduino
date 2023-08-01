@@ -9,6 +9,7 @@ from CTkMessagebox import CTkMessagebox
 
 from file_manager import FileParser,FileManager
 from process_manager import ProcessManager
+from my_timer import Timer
 
 class Application(ctk.CTk):
     
@@ -20,8 +21,8 @@ class Application(ctk.CTk):
         self.header_file_path = 'sketch/parameters.h'
 
         # Initialize attributes
-        self.control_buttons: Dict[str, ctk.Button] = {}
-        self.parameters_entries: Dict[str, Dict[str, ctk.Entry]] = {'Substrate': {}, 'Source': {}, 'Additional': {}, 'Savenames': {}}
+        self.control_buttons: Dict[str, ctk.CTkButton] = {}
+        self.parameters_entries: Dict[str, Dict[str, ctk.CTkEntry]] = {'Substrate': {}, 'Source': {}, 'Additional': {}, 'Savenames': {}}
         self.info_labels = {}
 
         # Configure the window
@@ -36,7 +37,7 @@ class Application(ctk.CTk):
         self.canvas.draw()
         self.canvas.get_tk_widget().pack(side=ctk.TOP, fill=ctk.BOTH, expand=True)
 
-        self.ani = mpl_animation.FuncAnimation(self.fig, self.update_graph, interval=500)
+        self.ani = mpl_animation.FuncAnimation(self.fig, self.update_graph, interval=920)
 
         bottom_frame = ctk.CTkFrame(self, height=100)
         bottom_frame.pack(side=ctk.BOTTOM, pady=10)
@@ -154,6 +155,8 @@ class Application(ctk.CTk):
         # Read new data and update graph with it
         reader = FileParser(self.data_file_path).read_file()
 
+        timer = Timer()
+
         self.ax.clear()
         self.ax.grid()
         self.ax.set_title(reader.title, fontsize=20, y=1.04)
@@ -165,9 +168,12 @@ class Application(ctk.CTk):
 
         self.ax.scatter(reader.time_values, reader.control1_values, s=3, color='b')
         self.ax.scatter(reader.time_values, reader.control2_values, s=3, color='r')
-        self.ax.scatter(reader.time_values, reader.temp1_values, label='Substrate', s=3, color='b')
-        self.ax.scatter(reader.time_values, reader.temp2_values, label='Source', s=3, color='r')
+        self.ax.plot(reader.time_values, reader.temp1_values, label='Substrate', color='b')
+        self.ax.plot(reader.time_values, reader.temp2_values, label='Source', color='r')
         self.ax.legend()
+
+        timer.stop("Scatter time")
+        timer.start()
 
         # Update labels with info
         def find_temperature_interval(temp_values, X):
@@ -211,7 +217,13 @@ class Application(ctk.CTk):
                 if label_widget is not None:
                     label_widget.configure(text = 'None')
 
+        timer.stop("Additional plot calculations")
+        timer.start()
+
         self.fig.canvas.draw()
+        
+        timer.stop("Canvas draw")
+        print("")
 
 
 app = Application()

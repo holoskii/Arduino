@@ -5,6 +5,9 @@ from typing import List
 from datetime import datetime
 import csv
 
+from my_timer import Timer
+
+
 class FileParser:
     start_prefix: str = "START: "
     info_prefix:  str = "INFO: "
@@ -22,7 +25,7 @@ class FileParser:
         self.title:             str         = ''
 
     def read_file(self):
-        start = time.time()
+        t = Timer()
         with open(self.output_file_path, 'r') as file:
             for line in file:
                 if line.startswith(self.start_prefix):
@@ -48,15 +51,15 @@ class FileParser:
                 self.max_time_value = max(self.max_time_value, self.last_point_time / 60 )
                 self.last_point_time += 1
         
-        end = time.time()
-        print("File read time = {:.0f} ms".format(1000 * (end - start)))
-    
         temp1 = self.temp1_values[-1] if len(self.temp1_values) > 0 else 0
         temp2 = self.temp2_values[-1] if len(self.temp2_values) > 0 else 0
         temps_str = "Substrate Blue {:3.01f}°C, Source Red: {:3.01f}°C".format(temp1, temp2)
         date_time_now = datetime.now()
         d = date_time_now.strftime("%H:%M:%S, %d %b, %Y")
         self.title = f'{self.arduino_param_str}\n{temps_str}; {d}'
+        
+        t.stop("File parsing")
+        
         return self
 
 class FileManager:
@@ -134,7 +137,7 @@ class FileManager:
 
         reader = FileParser(input_file_path).read_file()
 
-        start = time.time()
+        timer = Timer()
         with open(f'data/{output_filename}_data.csv', 'w', newline='') as output_file:
             writer = csv.writer(output_file)
             writer.writerow(['Index', 'Temp1', 'Temp2'])
@@ -142,6 +145,4 @@ class FileManager:
             for i, (temp1, temp2) in enumerate(zip(reader.temp1_values, reader.temp2_values), 1):
                 writer.writerow([i, temp1, temp2])
         
-        end = time.time()
-        print("File write time = {:.0f} ms".format(1000 * (end - start)))
-
+        timer.stop("File write time")
