@@ -1,7 +1,7 @@
-import numpy as np, customtkinter as ctk
-import matplotlib.animation as mpl_animation
-from tkinter import *
 from typing import Dict
+import numpy as np
+import customtkinter as ctk
+import matplotlib.animation as mpl_animation
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
@@ -12,7 +12,6 @@ from process_manager import ProcessManager
 from my_timer import Timer
 
 class Application(ctk.CTk):
-    
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -43,8 +42,8 @@ class Application(ctk.CTk):
         bottom_frame.pack(side=ctk.BOTTOM, pady=10)
 
         # Set up GUI components
-        self.setup_buttons_and_callbacks(bottom_frame)    
-        self.setup_gui(bottom_frame)    
+        self.setup_buttons_and_callbacks(bottom_frame)
+        self.setup_gui(bottom_frame)
         self.finalize_setup(bottom_frame)
 
     # ========== Buttons and callbacks ==========
@@ -55,12 +54,12 @@ class Application(ctk.CTk):
                 func()
             except Exception as e:
                 CTkMessagebox(title="Error", message="Gabella, \"{}\"".format(e))
-        
+
         def compile_button_callback():
             def action():
                 ProcessManager.stop_process()
                 ProcessManager.compile_flush_arduino(
-                    self.header_file_path, 
+                    self.header_file_path,
                     self.parameters_entries
                 )
             execute_with_error_handling(action)
@@ -70,7 +69,7 @@ class Application(ctk.CTk):
             ['Status',  0, 0, lambda: None],
             ['Start',   1, 0, lambda: execute_with_error_handling(ProcessManager.start_process)],
             ['Stop',    2, 0, lambda: ProcessManager.stop_process()],
-            ['Compile', 3, 0, compile_button_callback],
+            ['Compile', 3, 0, lambda: compile_button_callback],
             ['Clear',   4, 0, lambda: FileManager.clear_file(self.data_file_path)],
             ['Save',    4, 6, lambda: FileManager.save_graph_data(self.data_file_path, self.parameters_entries)]
         ]
@@ -142,7 +141,6 @@ class Application(ctk.CTk):
             control_buttons['Status'].after(100, lambda: status_updater(control_buttons))
         status_updater(self.control_buttons)
 
-
         # Update color of a status button
         def parameter_saver(self):
             if len(self.parameters_entries['Substrate']) > 0:
@@ -188,11 +186,11 @@ class Application(ctk.CTk):
 
         temperature_interval = None
         try:
-            temperature_interval = find_temperature_interval(reader.temp2_values, 
+            temperature_interval = find_temperature_interval(reader.temp2_values,
                 float(self.parameters_entries['Additional']['Interval temp'].get()))
         except:
             print('Failed to compute interval')
-        
+
         if temperature_interval is not None:
             self.ax.axvline(x=reader.time_values[temperature_interval[0]], color='g', linestyle='--', label='Interval Start')
             self.ax.axvline(x=reader.time_values[temperature_interval[1]], color='m', linestyle='--', label='Interval Finish')
@@ -221,7 +219,7 @@ class Application(ctk.CTk):
         timer.start()
 
         self.fig.canvas.draw()
-        
+
         timer.stop("Canvas draw")
         print("")
 
