@@ -1,7 +1,7 @@
 import time
 
 class Timer:
-    verbose: bool = True
+    verbose: bool = False
     start_time: float
 
     def start(self):

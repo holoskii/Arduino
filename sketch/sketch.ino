@@ -4,13 +4,16 @@
 // ##### USER SET VARIABLES
 #include "parameters.h"
 
+#define ENABLE_TIMER 1
+
 inline int ip(double d) { return (int)d; }
 inline int fp(double d) { return (int)((d - (int)d) * 100); }
+enum class TimerState { OFF, STARTED, ENDED };
 
 static constexpr int NUM_TEMP_READS = 4;
 static constexpr int TEMP_READ_INTERVAL = 1000 / NUM_TEMP_READS;
 
-unsigned long currentTime     = 0;  // For more predictable logic calculations, use one time for each loop call
+unsigned long currentTime = 0;  // For more predictable logic calculations, update one time for each loop call
 
 /**
  * @class Controller
@@ -187,24 +190,26 @@ public:
         if(currentTime >= nextReadTime) {
             nextReadTime += TEMP_READ_INTERVAL;
             
-            substrateController.pollLogic(depositionEnded);
-            bool calcLogic = sourceController.pollLogic(depositionEnded);
+            substrateController.pollLogic(timerState == TimerState::ENDED);
+            bool calcLogic = sourceController.pollLogic(timerState == TimerState::ENDED);
 
             // Send data only if logic was recalculated
             if(calcLogic) {
                 relayCycleStart = currentTime;
 
-                if (!depositionStarted) {
-                    if (sourceController.temperature >= SOURCE_TEMP * 0.99 && abs(sourceController.deriv) < 50) {
-                        depositionStarted = true;
+#if ENABLE_TIMER
+                if (timerState == TimerState::OFF) {
+                    if (sourceController.temperature + 5 >= SOURCE_TEMP && abs(sourceController.deriv) < 50) {
                         depositionStartTime = currentTime;
+                        depositionEndTime = currentTime + DEPOSITION_TIME_MS;
+                        timerState = TimerState::STARTED;
+                    }
+                } else if (timerState == TimerState::STARTED) {
+                    if (currentTime >= depositionEndTime) {
+                        timerState = TimerState::ENDED;
                     }
                 }
-                else {
-                    if (currentTime - depositionStartTime > DEPOSITION_TIME_MS) {
-                        depositionEnded = true;
-                    }
-                }
+#endif
 
                 sendData();
             }
@@ -232,33 +237,33 @@ public:
 
         // Some code repetition
         pos += snprintf(serialBuf + pos, serialBufLen - pos
-            , "TRACE1(SUBSTR): ERR=%3d P=%3d D=%3d "
-                "uCV=%3d CV=%3d T=%3d\n"
+            , "TRACE: 1 SUBSTR   ERR=%3d   P=%3d   D=%3d   "
+                "uCV=%3d   CV=%3d   T=%3d\n"
             , ip(substrateController.error), int(substrateController.p * 100), int(substrateController.d * 100)
             , int(substrateController.uncappedCV * 100), int(substrateController.cv * 100), ip(substrateController.temperature));
                 
         pos += snprintf(serialBuf + pos, serialBufLen - pos
-            , "TRACE2(SOURCE): ERR=%3d P=%3d D=%3d "
-                "uCV=%3d CV=%3d T=%3d\n"
+            , "TRACE: 2 SOURCE   ERR=%3d   P=%3d   D=%3d   "
+                "uCV=%3d   CV=%3d   T=%3d\n"
             , ip(sourceController.error), int(sourceController.p * 100), int(sourceController.d * 100)
             , int(sourceController.uncappedCV * 100), int(sourceController.cv * 100), ip(sourceController.temperature));
 
-        pos += snprintf(serialBuf + pos, serialBufLen - pos
-                        , "TIMER FULL: DEPOSITION_TIME_MS=%lu, depositionStartTime_ms=%lu, currentTime_ms=%lu"
-                        , DEPOSITION_TIME_MS, depositionStartTime, currentTime);
+#if ENABLE_TIMER
+        // Timer debugging
+        // pos += snprintf(serialBuf + pos, serialBufLen - pos
+        //                 , "TIMER FULL: DEPOSITION_TIME_MS=%lu, depositionStartTime_ms=%lu, depositionEndTime_ms=%lu, currentTime_ms=%lu\n"
+        //                 , DEPOSITION_TIME_MS, depositionStartTime, depositionEndTime, currentTime);
 
-        if(depositionStarted && !depositionEnded) {
-            pos += snprintf(serialBuf + pos, serialBufLen - pos
-                        , "TIMER ACTIVE: time left_s=%lu"
-                        , (currentTime - depositionStartTime) / 1000);
+        if (timerState == TimerState::OFF) {
+            pos += snprintf(serialBuf + pos, serialBufLen - pos, "TIMER OFF\n");
+        } else if (timerState == TimerState::STARTED) {
+            pos += snprintf(serialBuf + pos, serialBufLen - pos, "TIMER STARTED:  time left = %lu sec\n", (depositionEndTime - currentTime) / 1000);
+        } else {
+            pos += snprintf(serialBuf + pos, serialBufLen - pos, "TIMER ENDED\n");
         }
-        else if (depositionEnded) {
-            pos += snprintf(serialBuf + pos, serialBufLen - pos, "TIMER ENDED");
-        }
-        else {
-            pos += snprintf(serialBuf + pos, serialBufLen - pos, "TIMER OFF");
-        }
+#endif
 
+        pos += snprintf(serialBuf + pos, serialBufLen - pos, "\n");
 
         // Try to send all the info in one buffer to avoid flickering in receiving terminal
         assert(pos < serialBufLen);
@@ -279,9 +284,9 @@ private:
     unsigned long relayCycleStart = 0;
 
     // Timer variables
-    bool depositionStarted = false;
-    bool depositionEnded = false;
+    TimerState timerState = TimerState::OFF;
     unsigned long depositionStartTime = 0;
+    unsigned long depositionEndTime = 0;
 };
 
 Reactor r{};

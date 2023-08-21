@@ -134,6 +134,7 @@ class FileManager:
     @staticmethod
     def save_graph_data(input_file_path, parameters_entries):
         output_filename:str = str(parameters_entries['Additional']['Name'].get())
+        print("Saving file to " + output_filename)
 
         reader = FileParser(input_file_path).read_file()
 

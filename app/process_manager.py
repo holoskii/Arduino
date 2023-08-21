@@ -45,6 +45,7 @@ class ProcessManager:
     @staticmethod
     def compile_flush_arduino(header_file_path, parameters_entries):
         # 1. Update header file with new parameters
+        print("Creating custom header")
         FileManager.write_to_header(header_file_path, parameters_entries)
 
         # 2. Compile the code

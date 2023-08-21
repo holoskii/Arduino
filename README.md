@@ -12,8 +12,12 @@
 ard_compile    # Compile and upload the sketch into Arduino  
 ard_read       # Read and save to file in append mode  
 ard_read_clear # Read and save to file, delete old data  
-ard_plot       # Run python script and show plot in real-time  
+ard_plot       # Run python script and show plot in real-time 
+ard_update_me  # Pull new code from git, update fish. Make sure internet connection is on 
 </pre>
+
+# Notes
+If there are strange issues and you suspect timer corruption, use change ENABLE_TIMER to 0 in sketch.ino
 
 # Setup
 ## Hardware setup

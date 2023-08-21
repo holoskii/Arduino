@@ -53,12 +53,14 @@ class Application(ctk.CTk):
     def setup_buttons_and_callbacks(self, parent):
         # Callbacks
         def execute_with_error_handling(func):
+            print("execute_with_error_handling")
             try:
                 func()
             except Exception as e:
                 CTkMessagebox(title="Error", message="Gabella, \"{}\"".format(e))
 
         def compile_button_callback():
+            print("compile_button_callback")
             def action():
                 ProcessManager.stop_process()
                 ProcessManager.compile_flush_arduino(
@@ -72,7 +74,7 @@ class Application(ctk.CTk):
             ['Status',  0, 0, lambda: None],
             ['Start',   1, 0, lambda: execute_with_error_handling(ProcessManager.start_process)],
             ['Stop',    2, 0, lambda: ProcessManager.stop_process()],
-            ['Compile', 3, 0, lambda: compile_button_callback],
+            ['Compile', 3, 0, lambda: compile_button_callback()],
             ['Clear',   4, 0, lambda: FileManager.clear_file(self.data_file_path)],
             ['Save',    4, 6, lambda: FileManager.save_graph_data(self.data_file_path, self.parameters_entries)]
         ]
