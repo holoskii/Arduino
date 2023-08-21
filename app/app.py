@@ -155,8 +155,13 @@ class Application(ctk.CTk):
 
 
     def update_graph(self, i):
-        # Read new data and update graph with it
-        reader = FileParser(self.data_file_path).read_file()
+        try:
+            # Read new data and update graph with it
+            reader = FileParser(self.data_file_path).read_file()
+        except Exception as error:
+            print("Exception occured during file parsing:", error)
+            print("Try clearing the file")
+
 
         timer = Timer()
 
