@@ -1,13 +1,13 @@
-# How to use
-1. Rapidly smash bios(F12/DEL) key to enter the BIOS
-2. Choose USB flash drive and press Enter to boot from it
-3. Open the sketch from VS Code, set the required parameters
-4. Save the doc with Ctrl+S
-5. Open terminal, split it with Ctrl+Shift+O
-6. In one split run ard_compile and ard_read (or ard_read_clear)
-7. In second split run ard_plot
+# How to use GUI
+1. Open file app.py in ARDUINO/app
+2. Press Ctrl+F5 to start GUI app
+3. Set the desired parameters or load them from profile
+4. Press 'compile' to flush Arduino
+5. Press 'start' to start reading Arduino output and display it
+6. 'stop' button disables reading from Arduino, the board keeps working and sending info
+7. 'clear' button clears the data file
 
-# Functions
+# Functions (prefer using GUI)
 <pre>
 ard_compile    # Compile and upload the sketch into Arduino  
 ard_read       # Read and save to file in append mode  
