@@ -27,6 +27,9 @@ class Application(ctk.CTk):
         self.parameters_entries: Dict[str, Dict[str, ctk.CTkEntry]] = {'Substrate': {}, 'Source': {}, 'Additional': {}, 'Savenames': {}}
         self.info_labels = {}
 
+        self.last_substrate_temp: float = 0
+        self.last_source_temp: float = 0
+
         # Configure the window
         self.geometry("1600x900")
         self.title("Hohol production")
@@ -69,6 +72,30 @@ class Application(ctk.CTk):
                 )
             execute_with_error_handling(action)
 
+        def fix_offsets():
+            print("fix_offsets")
+
+            def set_text(e, text):
+                e.delete(0,ctk.END)
+                e.insert(0,text)
+                return
+
+            try:
+                substrate_offset: ctk.CTkEntry = self.parameters_entries['Substrate']['TempOffset']
+                target_substrate_temp: float = float(self.parameters_entries['Substrate']['Temperature'].get())
+                perfect_substrate_offset: int = int(target_substrate_temp - self.last_substrate_temp)
+
+                source_offset: ctk.CTkEntry = self.parameters_entries['Source']['TempOffset']
+                target_source_temp: float = float(self.parameters_entries['Source']['Temperature'].get())
+                perfect_source_offset: int = int(target_source_temp - self.last_source_temp)
+
+                set_text(substrate_offset, str(perfect_substrate_offset))
+                set_text(source_offset, str(perfect_source_offset))
+                print("Updated offsets")
+            except Exception as error:
+                print("Exception occured during fixing offsets:", error)
+        
+
         # Linking callbacks and buttons
         button_properties = [
             ['Status',  0, 0, lambda: None],
@@ -76,7 +103,8 @@ class Application(ctk.CTk):
             ['Stop',    2, 0, lambda: ProcessManager.stop_process()],
             ['Compile', 3, 0, lambda: compile_button_callback()],
             ['Clear',   4, 0, lambda: FileManager.clear_file(self.data_file_path)],
-            ['Save',    4, 6, lambda: FileManager.save_graph_data(self.data_file_path, self.parameters_entries)]
+            ['Save',    4, 6, lambda: FileManager.save_graph_data(self.data_file_path, self.parameters_entries)],
+            ['Fix offsets', 4, 7, lambda: fix_offsets()]
         ]
 
         for i, (button_text, row, column, button_callback) in enumerate(button_properties):
@@ -191,6 +219,9 @@ class Application(ctk.CTk):
         timer.start()
 
         self.ax.legend()
+
+        self.last_substrate_temp = reader.temp1_values[-1]
+        self.last_source_temp = reader.temp2_values[-1]
 
         # Update labels with info
         def find_temperature_interval(temp_values, X):
