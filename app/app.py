@@ -83,11 +83,11 @@ class Application(ctk.CTk):
             try:
                 substrate_offset: ctk.CTkEntry = self.parameters_entries['Substrate']['TempOffset']
                 target_substrate_temp: float = float(self.parameters_entries['Substrate']['Temperature'].get())
-                perfect_substrate_offset: int = int(target_substrate_temp - self.last_substrate_temp)
+                perfect_substrate_offset: int = int(target_substrate_temp - self.last_substrate_temp) + int(substrate_offset.get())
 
                 source_offset: ctk.CTkEntry = self.parameters_entries['Source']['TempOffset']
                 target_source_temp: float = float(self.parameters_entries['Source']['Temperature'].get())
-                perfect_source_offset: int = int(target_source_temp - self.last_source_temp)
+                perfect_source_offset: int = int(target_source_temp - self.last_source_temp) + int(source_offset.get())
 
                 set_text(substrate_offset, str(perfect_substrate_offset))
                 set_text(source_offset, str(perfect_source_offset))
