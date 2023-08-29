@@ -220,8 +220,9 @@ class Application(ctk.CTk):
 
         self.ax.legend()
 
-        self.last_substrate_temp = reader.temp1_values[-1]
-        self.last_source_temp = reader.temp2_values[-1]
+        if len(reader.temp1_values) > 0 and len(reader.temp2_values) > 0:
+            self.last_substrate_temp = reader.temp1_values[-1]
+            self.last_source_temp = reader.temp2_values[-1]
 
         # Update labels with info
         def find_temperature_interval(temp_values, X):
